@@ -37,7 +37,7 @@ export function StatsBar({
           </div>
         </div>
       </div>
-      <div className="mt-2.5 h-2.5 w-full overflow-hidden rounded-full" style=chatcmpl-tool-67a9e4c561d340df95bd0b9ef046a08c>
+      <div className="mt-2.5 h-2.5 w-full overflow-hidden rounded-full bg-white/10">
         <div
           className="h-full rounded-full bg-gradient-to-r from-sky-400 via-indigo-400 to-purple-400 transition-all duration-700 ease-out"
           style={{ width: `${p.pct}%` }}
