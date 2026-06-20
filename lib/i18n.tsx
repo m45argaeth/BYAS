@@ -39,7 +39,8 @@ export function I18nProvider({ children }: { children: ReactNode }) {
     const d = DICT[lang] ?? DICT.id
     return format(d[key] ?? EN[key] ?? key, vars)
   }
-  return <I18nContext.Provider value= lang, setLang, t >{children}</I18nContext.Provider>
+  const ctxValue: Ctx = { lang, setLang, t }
+  return <I18nContext.Provider value={ctxValue}>{children}</I18nContext.Provider>
 }
 
 export function useI18n(): Ctx {
