@@ -34,7 +34,6 @@ interface Particle {
   delay: number
 }
 
-/* ── ElementCard ── */
 function ElementCard({ el, selected, onClick }: { el: Element; selected: boolean; onClick: () => void }) {
   const group: ElementGroup = el.group ?? 'unknown'
   const c = GROUP_COLORS[group]
@@ -52,9 +51,9 @@ function ElementCard({ el, selected, onClick }: { el: Element; selected: boolean
         ['--pt-glow' as string]: c.ring.replace('0.45', '0.08'),
       }}
     >
-      {hasAtomic && <span className="pt-atomic" style= color: c.text >{el.atomicNumber}</span>}
+      {hasAtomic && <span className="pt-atomic" style=100>{el.atomicNumber}</span>}
       {symbol ? (
-        <span className="pt-symbol text-xl sm:text-2xl" style= color: c.text >{symbol}</span>
+        <span className="pt-symbol text-xl sm:text-2xl" style=100>{symbol}</span>
       ) : (
         <span className="relative z-10 text-2xl sm:text-3xl">{el.emoji}</span>
       )}
@@ -66,7 +65,6 @@ function ElementCard({ el, selected, onClick }: { el: Element; selected: boolean
   )
 }
 
-/* ── CombineSlot ── */
 function CombineSlot({ el, pick }: { el?: Element; pick: string }) {
   const key = el?.id ?? 'empty'
   if (!el) {
@@ -90,9 +88,9 @@ function CombineSlot({ el, pick }: { el?: Element; pick: string }) {
         background: `radial-gradient(circle at 50% 30%, ${c.ring.replace('0.45', '0.12')}, transparent 70%)`,
       }}
     >
-      {hasAtomic && <span className="absolute top-2 left-3 text-[10px] font-bold" style= color: c.text >{el.atomicNumber}</span>}
+      {hasAtomic && <span className="absolute top-2 left-3 text-[10px] font-bold" style=100>{el.atomicNumber}</span>}
       {symbol ? (
-        <span className="animate-floaty text-3xl sm:text-4xl font-extrabold" style= color: c.text >{symbol}</span>
+        <span className="animate-floaty text-3xl sm:text-4xl font-extrabold" style=100>{symbol}</span>
       ) : (
         <span className="animate-floaty text-3xl sm:text-4xl">{el.emoji}</span>
       )}
@@ -102,7 +100,6 @@ function CombineSlot({ el, pick }: { el?: Element; pick: string }) {
   )
 }
 
-/* ── ParticleBurst ── */
 function ParticleBurst({ particles }: { particles: Particle[] }) {
   if (!particles.length) return null
   return (
@@ -129,7 +126,6 @@ function ParticleBurst({ particles }: { particles: Particle[] }) {
   )
 }
 
-/* ── Home ── */
 export default function Home() {
   const { user } = useAuth()
   const { t, lang } = useI18n()
@@ -292,7 +288,7 @@ export default function Home() {
 
   return (
     <main className="mx-auto flex min-h-screen max-w-2xl flex-col px-3 py-4 sm:px-4 sm:py-6">
-      {flashColor && <div className="reaction-overlay" style= background: flashColor  />}
+      {flashColor && <div className="reaction-overlay" style=101 />}
       <ParticleBurst particles={particles} />
       <header className="flex items-center justify-between gap-2">
         <div className="min-w-0">
