@@ -20,3 +20,10 @@ export interface Element {
 export interface Discovery extends CombineResult {
   discoveredAt: number
 }
+
+// Progres pemain (XP diturunkan dari koleksi; streak disimpan eksplisit).
+export interface Stats {
+  currentStreak: number
+  bestStreak: number
+  lastPlayed: string | null // 'YYYY-MM-DD'
+}

@@ -6,10 +6,12 @@ import { RARITY_GRADIENT, RARITY_LABEL } from '@/lib/rarity'
 export function DiscoveryModal({
   result,
   isNew,
+  xpGain,
   onClose,
 }: {
   result: CombineResult
   isNew: boolean
+  xpGain?: number
   onClose: () => void
 }) {
   const style = RARITY_GRADIENT[result.rarity] ?? RARITY_GRADIENT.common
@@ -32,9 +34,16 @@ export function DiscoveryModal({
         {result.formula && (
           <p className='text-center font-mono text-slate-200'>{result.formula}</p>
         )}
-        <span className='mx-auto mt-2 block w-fit rounded-full bg-black/30 px-3 py-1 text-xs uppercase tracking-wide'>
-          {RARITY_LABEL[result.rarity] ?? result.rarity}
-        </span>
+        <div className='mt-2 flex items-center justify-center gap-2'>
+          <span className='rounded-full bg-black/30 px-3 py-1 text-xs uppercase tracking-wide'>
+            {RARITY_LABEL[result.rarity] ?? result.rarity}
+          </span>
+          {isNew && xpGain ? (
+            <span className='rounded-full bg-amber-400/90 px-3 py-1 text-xs font-bold text-slate-900'>
+              +{xpGain} XP
+            </span>
+          ) : null}
+        </div>
         <p className='mt-4 text-sm text-slate-100'>{result.explanation}</p>
         {result.fun_fact && (
           <p className='mt-3 rounded-lg bg-black/25 p-3 text-sm italic text-slate-200'>

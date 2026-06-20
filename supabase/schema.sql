@@ -21,7 +21,7 @@ create table if not exists player_elements (
   primary key (user_id, element)
 );
 
--- Koleksi / Pokedex per user (Fase 2). Tiap baris = 1 penemuan unik.
+-- Koleksi / Pokedex per user. Tiap baris = 1 penemuan unik.
 create table if not exists user_discoveries (
   user_id uuid not null references auth.users (id) on delete cascade,
   result text not null,
@@ -34,11 +34,25 @@ create table if not exists user_discoveries (
   primary key (user_id, result)
 );
 
--- RLS: user cuma bisa baca/tulis koleksinya sendiri.
 alter table user_discoveries enable row level security;
-
 drop policy if exists "own_discoveries" on user_discoveries;
 create policy "own_discoveries" on user_discoveries
+  for all
+  using (auth.uid() = user_id)
+  with check (auth.uid() = user_id);
+
+-- Progres pemain: streak harian (XP dihitung di client dari koleksi).
+create table if not exists player_stats (
+  user_id uuid primary key references auth.users (id) on delete cascade,
+  current_streak int default 0,
+  best_streak int default 0,
+  last_played date,
+  updated_at timestamptz default now()
+);
+
+alter table player_stats enable row level security;
+drop policy if exists "own_stats" on player_stats;
+create policy "own_stats" on player_stats
   for all
   using (auth.uid() = user_id)
   with check (auth.uid() = user_id);

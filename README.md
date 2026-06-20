@@ -11,6 +11,14 @@ Game web *discovery* reaksi kimia santai ala Little Alchemy. Tap dua elemen, com
 - Fallback ke 5 key sistem dengan rotasi + cooldown saat kena rate limit
 - Koleksi / Pokedex: galeri penemuan dikelompokkan per rarity
 - Auth email/password + cloud save: koleksi tersimpan di akun, sync lintas device
+- Progresi: XP per rarity, level + progress bar, dan streak harian
+
+## 🎮 Sistem progresi
+
+- XP per penemuan: common 10 · uncommon 25 · rare 60 · legendary 150
+- Total XP dihitung dari koleksi, jadi selalu konsisten setelah sync
+- Level pakai kurva landai (increment antar level naik linear)
+- Streak harian: naik kalau main berurutan tiap hari, reset kalau bolong
 
 ## 🔑 Cara kerja API key
 
@@ -40,7 +48,7 @@ npm run dev
 
 ### Database
 
-Jalankan `supabase/schema.sql` di SQL editor Supabase untuk membuat tabel `combinations`, `player_elements`, dan `user_discoveries` (beserta RLS-nya).
+Jalankan `supabase/schema.sql` di SQL editor Supabase untuk membuat tabel `combinations`, `player_elements`, `user_discoveries`, dan `player_stats` (beserta RLS-nya).
 
 ### Auth tanpa verifikasi email
 
@@ -56,6 +64,6 @@ Next.js (App Router) · React · Tailwind CSS · Supabase (Auth + DB) · Mimo AI
 - **Fase 2** — Gamification:
   - Pokedex / Koleksi ✅
   - Auth + cloud save ✅
-  - XP / Level / Streak ⬜
+  - XP / Level / Streak ✅
   - Leaderboard ⬜
 - **Fase 3** — Polish: share card, sound, achievement ⬜

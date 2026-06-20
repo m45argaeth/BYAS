@@ -1,4 +1,4 @@
-import type { Discovery } from './types'
+import type { Discovery, Stats } from './types'
 import { getSupabaseBrowser } from './supabaseBrowser'
 
 const COLS = 'result, formula, emoji, explanation, fun_fact, rarity, discovered_at'
@@ -45,5 +45,38 @@ export async function pushManyCloudDiscoveries(userId: string, ds: Discovery[]):
   await sb.from('user_discoveries').upsert(
     ds.map((d) => toRow(userId, d)),
     { onConflict: 'user_id,result' },
+  )
+}
+
+// ---- Stats ----
+
+export async function pullStats(userId: string): Promise<Stats | null> {
+  const sb = getSupabaseBrowser()
+  if (!sb) return null
+  const { data, error } = await sb
+    .from('player_stats')
+    .select('current_streak, best_streak, last_played')
+    .eq('user_id', userId)
+    .maybeSingle()
+  if (error || !data) return null
+  return {
+    currentStreak: data.current_streak ?? 0,
+    bestStreak: data.best_streak ?? 0,
+    lastPlayed: data.last_played ?? null,
+  }
+}
+
+export async function pushStats(userId: string, s: Stats): Promise<void> {
+  const sb = getSupabaseBrowser()
+  if (!sb) return
+  await sb.from('player_stats').upsert(
+    {
+      user_id: userId,
+      current_streak: s.currentStreak,
+      best_streak: s.bestStreak,
+      last_played: s.lastPlayed,
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: 'user_id' },
   )
 }

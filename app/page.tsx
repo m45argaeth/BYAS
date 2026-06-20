@@ -3,22 +3,30 @@
 import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { STARTER_ELEMENTS } from '@/lib/elements'
-import type { CombineResult, Discovery, Element } from '@/lib/types'
+import type { CombineResult, Discovery, Element, Stats } from '@/lib/types'
 import { DiscoveryModal } from '@/components/DiscoveryModal'
 import { ApiKeyModal } from '@/components/ApiKeyModal'
 import { AuthModal } from '@/components/AuthModal'
-import { INV_KEY, MIMO_KEY, saveDiscovery } from '@/lib/storage'
+import { StatsBar } from '@/components/StatsBar'
+import { INV_KEY, MIMO_KEY, saveDiscovery, loadDiscoveries, loadStats, saveStats } from '@/lib/storage'
+import { totalXpFromDiscoveries, recordPlay, XP_BY_RARITY } from '@/lib/progress'
 import { useAuth } from '@/lib/useAuth'
-import { syncDiscoveries } from '@/lib/sync'
-import { pushCloudDiscovery } from '@/lib/cloud'
+import { syncDiscoveries, syncStats } from '@/lib/sync'
+import { pushCloudDiscovery, pushStats } from '@/lib/cloud'
 import { getSupabaseBrowser } from '@/lib/supabaseBrowser'
 
 export default function Home() {
   const { user } = useAuth()
   const [inventory, setInventory] = useState<Element[]>(STARTER_ELEMENTS)
+  const [discoveries, setDiscoveries] = useState<Discovery[]>([])
+  const [stats, setStats] = useState<Stats>({ currentStreak: 0, bestStreak: 0, lastPlayed: null })
   const [selected, setSelected] = useState<string[]>([])
   const [loading, setLoading] = useState(false)
-  const [discovery, setDiscovery] = useState<{ result: CombineResult; isNew: boolean } | null>(null)
+  const [discovery, setDiscovery] = useState<{
+    result: CombineResult
+    isNew: boolean
+    xpGain: number
+  } | null>(null)
   const [toast, setToast] = useState<string | null>(null)
   const [apiKey, setApiKey] = useState('')
   const [showKeyModal, setShowKeyModal] = useState(false)
@@ -31,6 +39,8 @@ export default function Home() {
       const k = localStorage.getItem(MIMO_KEY)
       if (k) setApiKey(k)
     } catch {}
+    setDiscoveries(loadDiscoveries())
+    setStats(loadStats())
   }, [])
 
   useEffect(() => {
@@ -39,12 +49,13 @@ export default function Home() {
     } catch {}
   }, [inventory])
 
-  // Saat login: sync koleksi cloud <-> lokal, lalu tambahkan hasil ke inventory.
+  // Saat login: sync koleksi + stats cloud <-> lokal.
   useEffect(() => {
     if (!user) return
     let cancelled = false
     syncDiscoveries(user.id).then((merged) => {
       if (cancelled) return
+      setDiscoveries(merged)
       setInventory((prev) => {
         const names = new Set(prev.map((e) => e.name))
         const additions = merged
@@ -53,10 +64,15 @@ export default function Home() {
         return additions.length ? [...prev, ...additions] : prev
       })
     })
+    syncStats(user.id).then((s) => {
+      if (!cancelled) setStats(s)
+    })
     return () => {
       cancelled = true
     }
   }, [user])
+
+  const totalXp = useMemo(() => totalXpFromDiscoveries(discoveries), [discoveries])
 
   const selectedElements = useMemo(
     () =>
@@ -82,6 +98,18 @@ export default function Home() {
   async function signOut() {
     const sb = getSupabaseBrowser()
     await sb?.auth.signOut()
+  }
+
+  // Catat main hari ini -> update streak (lokal + cloud).
+  function registerPlay() {
+    setStats((prev) => {
+      const ns = recordPlay(prev)
+      if (ns !== prev) {
+        saveStats(ns)
+        if (user) pushStats(user.id, ns).catch(() => {})
+      }
+      return ns
+    })
   }
 
   async function combine() {
@@ -113,9 +141,9 @@ export default function Home() {
         return
       }
       const disc: Discovery = { ...result, discoveredAt: Date.now() }
-      // Simpan ke koleksi lokal (dedup). isNew = belum pernah ketemu.
       const isNew = saveDiscovery(disc)
       if (isNew) {
+        setDiscoveries((prev) => [...prev, disc])
         if (user) pushCloudDiscovery(user.id, disc).catch(() => {})
         if (!inventory.some((e) => e.name === result.result)) {
           setInventory((prev) => [
@@ -124,7 +152,12 @@ export default function Home() {
           ])
         }
       }
-      setDiscovery({ result, isNew })
+      registerPlay()
+      setDiscovery({
+        result,
+        isNew,
+        xpGain: isNew ? XP_BY_RARITY[result.rarity] ?? 10 : 0,
+      })
       setSelected([])
     } catch {
       showToast('Koneksi bermasalah, coba lagi.')
@@ -134,7 +167,7 @@ export default function Home() {
   }
 
   function resetGame() {
-    if (!confirm('Reset semua penemuan ke starter pack?')) return
+    if (!confirm('Reset inventory ke starter pack? (Koleksi & XP tetap aman)')) return
     setInventory(STARTER_ELEMENTS)
     setSelected([])
   }
@@ -153,9 +186,6 @@ export default function Home() {
           >
             📒 Koleksi
           </Link>
-          <span className='rounded-full bg-slate-800 px-3 py-1 text-xs'>
-            {inventory.length} elemen
-          </span>
           <button
             onClick={() => setShowKeyModal(true)}
             className='rounded-full bg-slate-800 px-3 py-1 text-xs hover:bg-slate-700'
@@ -181,7 +211,9 @@ export default function Home() {
         </div>
       </header>
 
-      <section className='mt-6 grid grid-cols-[1fr_auto_1fr] items-center gap-3 rounded-2xl border border-slate-800 bg-slate-900/60 p-4'>
+      <StatsBar totalXp={totalXp} streak={stats.currentStreak} bestStreak={stats.bestStreak} />
+
+      <section className='mt-4 grid grid-cols-[1fr_auto_1fr] items-center gap-3 rounded-2xl border border-slate-800 bg-slate-900/60 p-4'>
         <Slot el={selectedElements[0]} />
         <div className='text-center text-2xl text-slate-500'>+</div>
         <Slot el={selectedElements[1]} />
@@ -217,7 +249,7 @@ export default function Home() {
 
       <footer className='mt-auto pt-6 text-center'>
         <button onClick={resetGame} className='text-xs text-slate-500 hover:text-slate-300'>
-          Reset progress
+          Reset inventory
         </button>
       </footer>
 
@@ -225,6 +257,7 @@ export default function Home() {
         <DiscoveryModal
           result={discovery.result}
           isNew={discovery.isNew}
+          xpGain={discovery.xpGain}
           onClose={() => setDiscovery(null)}
         />
       )}
