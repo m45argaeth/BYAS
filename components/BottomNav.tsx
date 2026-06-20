@@ -10,15 +10,15 @@ const ITEMS = [
 ]
 
 export function BottomNav() {
-  const pathname = usePathname() || '/'
+  const pathname = usePathname()
   return (
-    <nav className="tabbar" aria-label="Primary">
-      {ITEMS.map((it) => {
-        const active = it.href === '/' ? pathname === '/' : pathname.startsWith(it.href)
+    <nav className="tabbar" aria-label="Primary navigation">
+      {ITEMS.map((item) => {
+        const active = item.href === '/' ? pathname === '/' : pathname.startsWith(item.href)
         return (
-          <Link key={it.href} href={it.href} className={`tab-item ${active ? 'is-active' : ''}`} aria-current={active ? 'page' : undefined}>
-            <span className="ico">{it.icon}</span>
-            {it.label}
+          <Link key={item.href} href={item.href} className={`tab-item ${active ? 'is-active' : ''}`} aria-current={active ? 'page' : undefined}>
+            <span className="ico">{item.icon}</span>
+            {item.label}
           </Link>
         )
       })}

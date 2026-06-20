@@ -316,7 +316,8 @@
   .tabbar {
     display: none;
     position: fixed; left: 0; right: 0; bottom: 0; z-index: 70;
-    grid-template-columns: repeat(5, 1fr);
+    grid-auto-flow: column;
+    grid-auto-columns: 1fr;
     border-top: 1px solid var(--border);
     background: color-mix(in srgb, var(--surface) 92%, transparent);
     padding: 6px 4px calc(6px + env(safe-area-inset-bottom));
@@ -359,14 +360,12 @@
 @media (max-width: 960px) {
   .app { grid-template-columns: 1fr; }
   .rail { display: none; }
-  .stage { height: auto; min-height: 100dvh; overflow: visible; }
-  .stage-scroll { overflow: visible; padding-bottom: 150px; }
-  .panel { height: auto; min-height: 100dvh; border-left: 0; overflow: visible; }
-  .panel-scroll { overflow: visible; padding-bottom: 96px; }
+  .stage { height: auto; min-height: auto; overflow: visible; }
+  .stage-scroll { overflow: visible; padding-bottom: 32px; }
+  .panel { height: auto; min-height: auto; border-left: 0; border-top: 1px solid var(--border); overflow: visible; }
+  .panel-scroll { overflow: visible; padding-bottom: 150px; }
   .tabbar { display: grid; }
-  .app[data-mview="lab"] .panel { display: none; }
-  .app[data-mview="panel"] .stage { display: none; }
-  .app[data-mview="lab"] .cta-dock { display: block; }
+  .cta-dock { display: block; }
 }
 @media (max-width: 560px) {
   .stage-head { flex-wrap: wrap; }
