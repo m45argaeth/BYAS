@@ -1,7 +1,17 @@
-import type { Discovery, Stats } from './types'
+import type { Discovery, MasteryCategory, Rarity, Stats } from './types'
 import { getSupabaseBrowser } from './supabaseBrowser'
 
-const COLS = 'result, formula, emoji, explanation, fun_fact, rarity, discovered_at'
+const COLS = 'result, formula, emoji, explanation, fun_fact, rarity, discovered_at, category, difficulty, xp, hint, ingredients'
+const RARITIES: Rarity[] = ['common', 'uncommon', 'rare', 'epic', 'legendary', 'mythic']
+const CATEGORIES: MasteryCategory[] = ['organic', 'inorganic', 'metals', 'gases', 'biology', 'energy', 'industrial']
+
+function safeRarity(value: unknown): Rarity {
+  return RARITIES.includes(value as Rarity) ? (value as Rarity) : 'common'
+}
+
+function safeCategory(value: unknown): MasteryCategory | undefined {
+  return CATEGORIES.includes(value as MasteryCategory) ? (value as MasteryCategory) : undefined
+}
 
 function toRow(userId: string, d: Discovery) {
   return {
@@ -12,6 +22,11 @@ function toRow(userId: string, d: Discovery) {
     explanation: d.explanation,
     fun_fact: d.fun_fact,
     rarity: d.rarity,
+    category: d.category,
+    difficulty: d.difficulty,
+    xp: d.xp,
+    hint: d.hint,
+    ingredients: d.ingredients ?? [],
     discovered_at: new Date(d.discoveredAt).toISOString(),
   }
 }
@@ -27,7 +42,12 @@ export async function pullCloudDiscoveries(userId: string): Promise<Discovery[]>
     emoji: r.emoji ?? '✨',
     explanation: r.explanation ?? '',
     fun_fact: r.fun_fact ?? '',
-    rarity: r.rarity ?? 'common',
+    rarity: safeRarity(r.rarity),
+    category: safeCategory(r.category),
+    difficulty: r.difficulty ?? undefined,
+    xp: r.xp ?? undefined,
+    hint: r.hint ?? undefined,
+    ingredients: Array.isArray(r.ingredients) ? r.ingredients : undefined,
     reacted: true,
     discoveredAt: r.discovered_at ? new Date(r.discovered_at).getTime() : Date.now(),
   }))
@@ -55,7 +75,7 @@ export async function pullStats(userId: string): Promise<Stats | null> {
   if (!sb) return null
   const { data, error } = await sb
     .from('player_stats')
-    .select('current_streak, best_streak, last_played, display_name')
+    .select('current_streak, best_streak, last_played, display_name, total_xp, hint_tokens, lab_reputation, completed_daily_challenges, failed_experiments')
     .eq('user_id', userId)
     .maybeSingle()
   if (error || !data) return null
@@ -64,6 +84,11 @@ export async function pullStats(userId: string): Promise<Stats | null> {
     bestStreak: data.best_streak ?? 0,
     lastPlayed: data.last_played ?? null,
     displayName: data.display_name ?? null,
+    totalXp: data.total_xp ?? 0,
+    hintTokens: data.hint_tokens ?? 0,
+    labReputation: data.lab_reputation ?? 0,
+    completedDailyChallenges: Array.isArray(data.completed_daily_challenges) ? data.completed_daily_challenges : [],
+    failedExperiments: data.failed_experiments ?? 0,
   }
 }
 
@@ -79,6 +104,10 @@ export async function pushStats(userId: string, s: Stats, totalXp: number): Prom
       best_streak: s.bestStreak,
       last_played: s.lastPlayed,
       total_xp: totalXp,
+      hint_tokens: s.hintTokens ?? 0,
+      lab_reputation: s.labReputation ?? totalXp,
+      completed_daily_challenges: s.completedDailyChallenges ?? [],
+      failed_experiments: s.failedExperiments ?? 0,
       updated_at: new Date().toISOString(),
     },
     { onConflict: 'user_id' },
@@ -90,7 +119,7 @@ export async function pushTotalXp(userId: string, totalXp: number): Promise<void
   const sb = getSupabaseBrowser()
   if (!sb) return
   await sb.from('player_stats').upsert(
-    { user_id: userId, total_xp: totalXp, updated_at: new Date().toISOString() },
+    { user_id: userId, total_xp: totalXp, lab_reputation: totalXp, updated_at: new Date().toISOString() },
     { onConflict: 'user_id' },
   )
 }
