@@ -1,29 +1,39 @@
-// SERVER ONLY. Jangan pernah import file ini dari komponen client.
+// System API keys from env (comma-separated), with simple rotation + rate-limit cooldown.
 const SYSTEM_KEYS = (process.env.MIMO_KEYS ?? '')
   .split(',')
-  .map((k) => k.trim())
+  .map((s) => s.trim())
   .filter(Boolean)
 
-// key -> timestamp (ms) kapan key boleh dipakai lagi setelah kena rate limit.
+const COOLDOWN_MS = 60_000
 const cooldown = new Map<string, number>()
 
-function pickSystemKey(): string | null {
+export function markRateLimited(key: string): void {
+  cooldown.set(key, Date.now() + COOLDOWN_MS)
+}
+
+function shuffle<T>(arr: T[]): T[] {
+  const a = [...arr]
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1))
+    const tmp = a[i]
+    a[i] = a[j]
+    a[j] = tmp
+  }
+  return a
+}
+
+function availableSystemKeys(): string[] {
   const now = Date.now()
-  const available = SYSTEM_KEYS.filter((k) => (cooldown.get(k) ?? 0) <= now)
-  const pool = available.length ? available : SYSTEM_KEYS
-  if (!pool.length) return null
-  return pool[Math.floor(Math.random() * pool.length)]
+  const avail = SYSTEM_KEYS.filter((k) => (cooldown.get(k) ?? 0) < now)
+  return avail.length ? avail : SYSTEM_KEYS
 }
 
-export function markRateLimited(key: string, ms = 60_000): void {
-  cooldown.set(key, Date.now() + ms)
+export function pickSystemKey(): string | undefined {
+  return shuffle(availableSystemKeys())[0]
 }
 
-// BYOK: kalau pemain punya key sendiri, pakai itu TANPA fallback ke sistem.
-// Kalau nggak, kembalikan semua key sistem terurut (rotasi) buat dicoba sampai sukses.
+// Returns the ordered list of keys to try. BYOK (player key) takes priority and is used alone.
 export function resolveKeys(playerKey?: string): string[] {
-  if (playerKey && playerKey.startsWith('sk-')) return [playerKey]
-  const first = pickSystemKey()
-  if (!first) return []
-  return [first, ...SYSTEM_KEYS.filter((k) => k !== first)]
+  if (playerKey) return [playerKey]
+  return shuffle(availableSystemKeys())
 }
