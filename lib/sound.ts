@@ -54,18 +54,9 @@ function tone(freq: number, durMs: number, type: OscillatorType, gain = 0.06, de
   osc.stop(start + durMs / 1000)
 }
 
-export function playPop() {
-  tone(440, 90, 'triangle')
-}
-export function playError() {
-  tone(180, 220, 'sawtooth', 0.05)
-}
-export function playSuccess() {
-  tone(523, 120, 'triangle')
-  tone(784, 160, 'triangle', 0.06, 110)
-}
-export function playUnlock() {
-  tone(523, 120, 'triangle')
-  tone(659, 120, 'triangle', 0.06, 110)
-  tone(988, 240, 'triangle', 0.06, 230)
-}
+export function playPop() { tone(440, 90, 'triangle') }
+export function playError() { tone(180, 220, 'sawtooth', 0.05) }
+export function playSuccess() { tone(523, 120, 'triangle'); tone(784, 160, 'triangle', 0.06, 110) }
+export function playUnlock() { tone(523, 120, 'triangle'); tone(659, 120, 'triangle', 0.06, 110); tone(988, 240, 'triangle', 0.06, 230) }
+export function playCombineCast() { tone(330, 80, 'triangle', 0.05); tone(440, 100, 'triangle', 0.06, 70); tone(554, 140, 'triangle', 0.05, 140) }
+export function playReactionBurst() { tone(660, 100, 'triangle', 0.06); tone(880, 130, 'triangle', 0.05, 60); tone(1100, 180, 'triangle', 0.04, 120) }
