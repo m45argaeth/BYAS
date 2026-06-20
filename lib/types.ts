@@ -1,3 +1,5 @@
+export type Lang = 'id' | 'en' | 'cn'
+
 export type Rarity = 'common' | 'uncommon' | 'rare' | 'legendary'
 
 export interface CombineResult {
@@ -10,7 +12,9 @@ export interface CombineResult {
   reacted: boolean
 }
 
+// Item di inventory. id = identitas kanonik (simbol untuk starter, nama hasil untuk turunan).
 export interface Element {
+  id: string
   name: string
   emoji: string
   formula?: string
