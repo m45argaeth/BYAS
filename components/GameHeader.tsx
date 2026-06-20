@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type CSSProperties } from 'react'
 import type { Discovery, Stats } from '@/lib/types'
 import { MIMO_KEY, loadDiscoveries, loadStats } from '@/lib/storage'
 import { levelProgress, researchRank, totalXp } from '@/lib/progress'
@@ -12,6 +12,7 @@ import { AuthModal } from '@/components/AuthModal'
 import { SettingsModal } from '@/components/SettingsModal'
 
 const FALLBACK_STATS: Stats = { currentStreak: 0, bestStreak: 0, lastPlayed: null, displayName: null, hintTokens: 0, coins: 0, bonusXp: 0, failedExperiments: 0 }
+const loginBtnStyle: CSSProperties = { borderColor: 'var(--accent)' }
 
 export function GameHeader({ discoveries: dProp, stats: sProp, eyebrow = 'BYAS · Reaction Lab' }: { discoveries?: Discovery[]; stats?: Stats; eyebrow?: string }) {
   const { user } = useAuth()
@@ -48,6 +49,8 @@ export function GameHeader({ discoveries: dProp, stats: sProp, eyebrow = 'BYAS �
     if (typeof window !== 'undefined') window.location.reload()
   }
 
+  const xpStyle: CSSProperties = { width: `${progress.pct}%` }
+
   return (
     <header className="stage-head">
       <div className="stage-head-id">
@@ -55,7 +58,7 @@ export function GameHeader({ discoveries: dProp, stats: sProp, eyebrow = 'BYAS �
         <strong>Lv {progress.level} · {rank}</strong>
       </div>
       <div className="stage-head-xp" aria-label={`Research XP ${progress.into} of ${progress.span}`}>
-        <div className="xp-mini"><div style={{ width: `${progress.pct}%` }} /></div>
+        <div className="xp-mini"><div style={xpStyle} /></div>
       </div>
       <div className="stage-head-chips">
         <span className="hud-chip">🔥 {liveS.currentStreak || 0}</span>
@@ -64,7 +67,7 @@ export function GameHeader({ discoveries: dProp, stats: sProp, eyebrow = 'BYAS �
         <button type="button" onClick={() => setShowKey(true)} className="hud-chip" aria-label="API key">🔑</button>
         {user
           ? <button type="button" onClick={signOut} className="hud-chip" aria-label="Sign out">👤</button>
-          : <button type="button" onClick={() => setShowAuth(true)} className="hud-chip" style= borderColor: 'var(--accent)'  aria-label="Login">➡️</button>}
+          : <button type="button" onClick={() => setShowAuth(true)} className="hud-chip" style={loginBtnStyle} aria-label="Login">➡️</button>}
         <button type="button" onClick={() => setShowSettings(true)} className="hud-chip" aria-label="Settings">⚙️</button>
       </div>
 
