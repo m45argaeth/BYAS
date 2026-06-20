@@ -6,16 +6,18 @@ import { useAuth } from '@/lib/useAuth'
 import { loadStats, saveStats } from '@/lib/storage'
 import { levelFromXp } from '@/lib/progress'
 import { pullLeaderboard, updateDisplayName, type LeaderboardEntry } from '@/lib/cloud'
+import { useI18n } from '@/lib/i18n'
 
 function rankBadge(rank: number): string {
   if (rank === 1) return '🥇'
   if (rank === 2) return '🥈'
   if (rank === 3) return '🥉'
-  return `#${rank}`
+  return '#' + rank
 }
 
 export default function LeaderboardPage() {
   const { user } = useAuth()
+  const { t } = useI18n()
   const [entries, setEntries] = useState<LeaderboardEntry[]>([])
   const [loading, setLoading] = useState(true)
   const [name, setName] = useState('')
@@ -38,7 +40,7 @@ export default function LeaderboardPage() {
     if (!user) return
     const trimmed = name.trim().slice(0, 20)
     if (!trimmed) {
-      setMsg('Username nggak boleh kosong.')
+      setMsg(t('leaderboard.emptyName'))
       return
     }
     setSaving(true)
@@ -47,7 +49,7 @@ export default function LeaderboardPage() {
       await updateDisplayName(user.id, trimmed)
       const s = loadStats()
       saveStats({ ...s, displayName: trimmed })
-      setMsg('Username tersimpan! ✅')
+      setMsg(t('leaderboard.saved'))
       setTimeout(() => setMsg(null), 2000)
       await refresh()
     } finally {
@@ -57,74 +59,66 @@ export default function LeaderboardPage() {
 
   return (
     <main className='mx-auto flex min-h-screen max-w-3xl flex-col px-4 py-6'>
-      <header className='flex items-center justify-between'>
-        <div>
-          <h1 className='text-2xl font-extrabold tracking-tight'>🏆 Leaderboard</h1>
-          <p className='text-xs text-slate-400'>Top alkemis berdasarkan XP</p>
+      <header className='flex items-center justify-between gap-2'>
+        <div className='min-w-0'>
+          <h1 className='truncate text-2xl font-extrabold tracking-tight'>🏆 {t('leaderboard.title')}</h1>
+          <p className='text-xs text-muted'>{t('leaderboard.subtitle')}</p>
         </div>
-        <Link href='/' className='rounded-full bg-slate-800 px-3 py-1 text-xs hover:bg-slate-700'>
-          ← Kembali combine
+        <Link href='/' className='rounded-full card-2 px-3 py-1.5 text-xs hover:opacity-80'>
+          {t('pokedex.back')}
         </Link>
       </header>
 
       {user ? (
-        <div className='mt-4 rounded-2xl border border-slate-800 bg-slate-900/60 p-3'>
-          <label className='text-xs text-slate-400'>Username kamu (tampil di leaderboard)</label>
+        <div className='mt-4 rounded-2xl card p-3'>
+          <label className='text-xs text-muted'>{t('leaderboard.usernameLabel')}</label>
           <div className='mt-2 flex gap-2'>
             <input
               value={name}
               onChange={(e) => setName(e.target.value)}
               maxLength={20}
-              placeholder='cth: AlkemisSakti'
-              className='flex-1 rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-sm outline-none focus:border-sky-500'
+              placeholder={t('leaderboard.usernamePlaceholder')}
+              className='flex-1 rounded-lg border border-base card-2 px-3 py-2 text-sm outline-none'
             />
             <button
               onClick={saveName}
               disabled={saving}
-              className='rounded-lg bg-sky-600 px-4 py-2 text-sm font-semibold hover:bg-sky-500 disabled:opacity-50'
+              className='rounded-lg bg-sky-600 px-4 py-2 text-sm font-semibold text-white hover:bg-sky-500 disabled:opacity-50'
             >
-              {saving ? '...' : 'Simpan'}
+              {saving ? '...' : t('leaderboard.save')}
             </button>
           </div>
-          {msg && <p className='mt-2 text-xs text-emerald-400'>{msg}</p>}
+          {msg ? <p className='mt-2 text-xs text-emerald-400'>{msg}</p> : null}
         </div>
       ) : (
-        <p className='mt-4 rounded-2xl border border-slate-800 bg-slate-900/60 p-3 text-sm text-slate-400'>
-          Masuk dulu di halaman utama buat ikut leaderboard dan set username.
-        </p>
+        <p className='mt-4 rounded-2xl card p-3 text-sm text-muted'>{t('leaderboard.loginToJoin')}</p>
       )}
 
       <section className='mt-6'>
         {loading ? (
-          <p className='text-center text-sm text-slate-500'>Memuat ranking...</p>
+          <p className='text-center text-sm text-muted'>{t('leaderboard.loading')}</p>
         ) : entries.length === 0 ? (
-          <p className='text-center text-sm text-slate-500'>
-            Belum ada yang masuk ranking. Jadilah yang pertama! 🧪
-          </p>
+          <p className='text-center text-sm text-muted'>{t('leaderboard.empty')}</p>
         ) : (
           <ol className='space-y-2'>
             {entries.map((e, i) => {
-              const isMe = user && e.userId === user.id
+              const isMe = Boolean(user && e.userId === user.id)
+              const cls =
+                'flex items-center gap-3 rounded-xl border p-3 ' +
+                (isMe ? 'border-sky-500 bg-sky-500/10' : 'border-base card')
               return (
-                <li
-                  key={e.userId}
-                  className={`flex items-center gap-3 rounded-xl border p-3 ${
-                    isMe
-                      ? 'border-sky-500 bg-sky-500/10'
-                      : 'border-slate-800 bg-slate-900/40'
-                  }`}
-                >
+                <li key={e.userId} className={cls}>
                   <span className='w-8 text-center text-sm font-bold'>{rankBadge(i + 1)}</span>
-                  <div className='flex-1'>
-                    <p className='text-sm font-semibold'>
-                      {e.displayName || 'Alkemis misterius'}
-                      {isMe && <span className='ml-2 text-xs text-sky-400'>(kamu)</span>}
+                  <div className='min-w-0 flex-1'>
+                    <p className='truncate text-sm font-semibold'>
+                      {e.displayName || t('leaderboard.mystery')}
+                      {isMe ? <span className='ml-2 text-xs text-sky-400'>{t('leaderboard.you')}</span> : null}
                     </p>
-                    <p className='text-xs text-slate-500'>
-                      Level {levelFromXp(e.totalXp)} · 🔥 {e.currentStreak} hari
+                    <p className='text-xs text-muted'>
+                      {t('leaderboard.levelStreak', { lvl: levelFromXp(e.totalXp), n: e.currentStreak })}
                     </p>
                   </div>
-                  <span className='text-sm font-bold text-amber-300'>{e.totalXp} XP</span>
+                  <span className='text-sm font-bold text-amber-400'>{e.totalXp} XP</span>
                 </li>
               )
             })}

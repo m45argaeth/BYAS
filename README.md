@@ -1,71 +1,80 @@
 # ⚗️ BYAS — Bring Your Alchemy Skill
 
-Game web *discovery* reaksi kimia santai ala Little Alchemy. Tap dua elemen, combine, dan AI (Mimo `mimo-v2.5-pro`) men-generate hasilnya — lengkap dengan penjelasan, fun fact, dan rarity. Hasil di-cache di Supabase biar konsisten dan hemat.
+Game kimia bergaya *Little Alchemy*, tapi pakai reaksi kimia nyata. Pilih dua unsur/senyawa, tekan **Combine**, dan AI (Mimo) menentukan hasil reaksinya lengkap dengan rumus, penjelasan, fun fact, dan tingkat kelangkaan.
 
 ## ✨ Fitur
 
-- Tap-to-select 2 elemen lalu Combine
-- Generate reaksi via Mimo AI (output JSON terstruktur)
-- Cache kombinasi di Supabase (combo yang sama tidak panggil AI lagi)
-- BYOK (Bring Your Alchemy Skill): pemain bisa pakai API key Mimo sendiri
-- Fallback ke 5 key sistem dengan rotasi + cooldown saat kena rate limit
-- Koleksi / Pokedex: galeri penemuan dikelompokkan per rarity
-- Auth email/password + cloud save: koleksi tersimpan di akun, sync lintas device
-- Progresi: XP per rarity, level + progress bar, dan streak harian
-- Leaderboard global: ranking berdasarkan XP dengan username sendiri
+- **Combine berbasis AI** — hasil reaksi di-generate oleh model `mimo-v2.5-pro`.
+- **Unsur dasar**: Hidrogen (H), Oksigen (O), Karbon (C), Nitrogen (N), Sulfur (S), Natrium (Na).
+- **Koleksi / Pokedex** — semua penemuan tersimpan & dikelompokkan per rarity.
+- **XP, Level & Streak** — progress harian dengan streak.
+- **Leaderboard** — ranking berdasarkan total XP, username diatur sendiri.
+- **Achievements** — 6 badge dengan notifikasi pop-up.
+- **Share card** — bikin kartu penemuan (canvas) buat dibagikan / di-download.
+- **Sound effects** — efek suara sintetik (Web Audio), bisa dimatikan.
+- **Dark / Light mode** — toggle tema, tersimpan di browser.
+- **Multi bahasa** — ID / EN / CN, termasuk bahasa output AI.
+- **BYOK** — pakai API key Mimo sendiri, atau pakai rotasi key sistem.
+- **Sinkron cloud** — login email (Supabase) buat simpan koleksi lintas device.
+- **Local-first** — tetap jalan tanpa login (data di localStorage).
 
-## 🎮 Sistem progresi
+## 🗒️ Tech stack
 
-- XP per penemuan: common 10 · uncommon 25 · rare 60 · legendary 150
-- Total XP dihitung dari koleksi, jadi selalu konsisten setelah sync
-- Level pakai kurva landai (increment antar level naik linear)
-- Streak harian: naik kalau main berurutan tiap hari, reset kalau bolong
-- Leaderboard baca dari `player_stats` (public read), tiap user set username sendiri
-
-## 🔑 Cara kerja API key
-
-1. Tiap request combine, server cek cache Supabase dulu. Kalau ada, balik tanpa AI.
-2. Kalau pemain mengisi key sendiri (header `x-mimo-key`), pakai key itu.
-3. Kalau tidak, ambil 1 dari `MIMO_KEYS` (rotasi acak, retry ke key lain saat 429).
-
-Key pemain hanya disimpan di localStorage browser, tidak pernah dipersist di server.
+- Next.js 14 (App Router) + React 18 + TypeScript
+- Tailwind CSS (dark mode via class + CSS variables)
+- Supabase (auth email + Postgres + RLS)
+- Mimo API (OpenAI-compatible) untuk generasi reaksi
 
 ## 🚀 Setup
 
+### 1. Install
+
 ```bash
 npm install
-cp .env.example .env
-# isi MIMO_KEYS dan kredensial Supabase di .env
+```
+
+### 2. Environment variables
+
+Salin `.env.example` jadi `.env.local` lalu isi:
+
+```
+MIMO_KEYS=sk-key1,sk-key2,sk-key3,sk-key4,sk-key5
+NEXT_PUBLIC_SUPABASE_URL=https://xxxx.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=...
+SUPABASE_SERVICE_ROLE_KEY=...
+```
+
+- `MIMO_KEYS`: daftar API key sistem (dipisah koma). Generate di https://platform.xiaomimimo.com/#/console/api-keys
+- Tiga var Supabase opsional: tanpa itu, cache/auth/cloud mati tapi game tetap jalan secara lokal.
+
+### 3. Database (Supabase)
+
+Jalankan isi `supabase/schema.sql` di **SQL Editor** Supabase.
+
+Matikan verifikasi email biar bisa langsung main:
+**Authentication → Sign In / Providers → Email → nonaktifkan “Confirm email”.**
+
+### 4. Jalankan / Deploy
+
+```bash
 npm run dev
 ```
 
-### Environment variables
+Deploy paling gampang lewat **Vercel**: import repo ini, set environment variables di atas, lalu deploy. Setiap push ke `main` otomatis ter-deploy.
 
-| Variabel | Keterangan |
-| --- | --- |
-| `MIMO_KEYS` | 5 API key Mimo dipisah koma untuk rotasi (server-only) |
-| `NEXT_PUBLIC_SUPABASE_URL` | URL project Supabase |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Anon/public key Supabase (browser: auth + cloud save) |
-| `SUPABASE_SERVICE_ROLE_KEY` | Service role key Supabase (server-only: cache) |
+## 🎮 Cara main
 
-### Database
+1. Pilih dua elemen (tap untuk pilih, tap lagi untuk batal).
+2. Tekan **Combine**.
+3. Lihat hasil reaksi, kumpulkan penemuan, naikkan level, dan kejar achievement.
 
-Jalankan `supabase/schema.sql` di SQL editor Supabase untuk membuat tabel `combinations`, `player_elements`, `user_discoveries`, dan `player_stats` (beserta RLS-nya). Leaderboard pakai policy public-read pada `player_stats`.
+## 📁 Struktur singkat
 
-### Auth tanpa verifikasi email
+- `app/` — halaman (home, pokedex, leaderboard) + API route `combine`.
+- `components/` — modal & UI (Discovery, Auth, ApiKey, Settings, dll).
+- `lib/` — logika game (elements, progress, rarity, share, sound, i18n, theme, cloud sync, dll).
+- `supabase/schema.sql` — skema database + RLS.
 
-Di dashboard Supabase: **Authentication → Sign In / Providers → Email**, matikan **Confirm email**. Dengan begitu daftar pakai email + password langsung login tanpa nunggu email konfirmasi.
+---
 
-## 🧱 Tech stack
-
-Next.js (App Router) · React · Tailwind CSS · Supabase (Auth + DB) · Mimo AI (via OpenAI SDK) · Vercel
-
-## 🗺️ Roadmap
-
-- **Fase 1** — Core loop ✅
-- **Fase 2** — Gamification:
-  - Pokedex / Koleksi ✅
-  - Auth + cloud save ✅
-  - XP / Level / Streak ✅
-  - Leaderboard ✅
-- **Fase 3** — Polish: share card, sound, achievement ⬜
+Dibuat buat eksperimen, belajar kimia, dan having fun. 🧪
