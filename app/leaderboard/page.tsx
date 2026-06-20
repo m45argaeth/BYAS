@@ -9,9 +9,9 @@ import { pullLeaderboard, updateDisplayName, type LeaderboardEntry } from '@/lib
 import { useI18n } from '@/lib/i18n'
 
 function rankBadge(rank: number): string {
-  if (rank === 1) return '🥇'
-  if (rank === 2) return '🥈'
-  if (rank === 3) return '🥉'
+  if (rank === 1) return '\ud83e\udd47'
+  if (rank === 2) return '\ud83e\udd48'
+  if (rank === 3) return '\ud83e\udd49'
   return '#' + rank
 }
 
@@ -58,67 +58,66 @@ export default function LeaderboardPage() {
   }
 
   return (
-    <main className='mx-auto flex min-h-screen max-w-3xl flex-col px-4 py-6'>
-      <header className='flex items-center justify-between gap-2'>
-        <div className='min-w-0'>
-          <h1 className='truncate text-2xl font-extrabold tracking-tight'>🏆 {t('leaderboard.title')}</h1>
-          <p className='text-xs text-muted'>{t('leaderboard.subtitle')}</p>
+    <main className="mx-auto flex min-h-screen w-full max-w-2xl flex-col gap-6 px-4 py-6 pb-28">
+      <header className="flex items-center justify-between gap-3">
+        <div className="min-w-0">
+          <p className="lab-eyebrow">BYAS \u00b7 Reputation</p>
+          <h1 className="truncate text-2xl font-black tracking-tight">\ud83c\udfc6 {t('leaderboard.title')}</h1>
+          <p className="mt-0.5 text-xs text-muted">{t('leaderboard.subtitle')}</p>
         </div>
-        <Link href='/' className='rounded-full card-2 px-3 py-1.5 text-xs hover:opacity-80'>
-          {t('pokedex.back')}
-        </Link>
+        <Link href="/" className="lab-button shrink-0">{t('pokedex.back')}</Link>
       </header>
 
       {user ? (
-        <div className='mt-4 rounded-2xl card p-3'>
-          <label className='text-xs text-muted'>{t('leaderboard.usernameLabel')}</label>
-          <div className='mt-2 flex gap-2'>
+        <div className="lab-panel">
+          <p className="lab-eyebrow">{t('leaderboard.usernameLabel')}</p>
+          <div className="mt-3 flex gap-2">
             <input
               value={name}
               onChange={(e) => setName(e.target.value)}
               maxLength={20}
               placeholder={t('leaderboard.usernamePlaceholder')}
-              className='flex-1 rounded-lg border border-base card-2 px-3 py-2 text-sm outline-none'
+              className="flex-1 rounded-xl border border-base bg-white/[0.04] px-3 py-2 text-sm outline-none transition-colors focus:border-cyan-300/40"
             />
             <button
               onClick={saveName}
               disabled={saving}
-              className='rounded-lg bg-sky-600 px-4 py-2 text-sm font-semibold text-white hover:bg-sky-500 disabled:opacity-50'
+              className="lab-button-primary disabled:cursor-not-allowed disabled:opacity-50"
             >
               {saving ? '...' : t('leaderboard.save')}
             </button>
           </div>
-          {msg ? <p className='mt-2 text-xs text-emerald-400'>{msg}</p> : null}
+          {msg ? <p className="mt-2 text-xs text-cyan-300">{msg}</p> : null}
         </div>
       ) : (
-        <p className='mt-4 rounded-2xl card p-3 text-sm text-muted'>{t('leaderboard.loginToJoin')}</p>
+        <p className="lab-panel text-sm text-muted">{t('leaderboard.loginToJoin')}</p>
       )}
 
-      <section className='mt-6'>
+      <section>
         {loading ? (
-          <p className='text-center text-sm text-muted'>{t('leaderboard.loading')}</p>
+          <p className="text-center text-sm text-muted">{t('leaderboard.loading')}</p>
         ) : entries.length === 0 ? (
-          <p className='text-center text-sm text-muted'>{t('leaderboard.empty')}</p>
+          <p className="text-center text-sm text-muted">{t('leaderboard.empty')}</p>
         ) : (
-          <ol className='space-y-2'>
+          <ol className="space-y-2">
             {entries.map((e, i) => {
               const isMe = Boolean(user && e.userId === user.id)
               const cls =
-                'flex items-center gap-3 rounded-xl border p-3 ' +
-                (isMe ? 'border-sky-500 bg-sky-500/10' : 'border-base card')
+                'flex items-center gap-3 rounded-2xl border p-3 ' +
+                (isMe ? 'border-cyan-300/40 bg-cyan-300/10' : 'border-base bg-white/[0.03]')
               return (
                 <li key={e.userId} className={cls}>
-                  <span className='w-8 text-center text-sm font-bold'>{rankBadge(i + 1)}</span>
-                  <div className='min-w-0 flex-1'>
-                    <p className='truncate text-sm font-semibold'>
+                  <span className="w-8 text-center text-sm font-black">{rankBadge(i + 1)}</span>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-bold">
                       {e.displayName || t('leaderboard.mystery')}
-                      {isMe ? <span className='ml-2 text-xs text-sky-400'>{t('leaderboard.you')}</span> : null}
+                      {isMe ? <span className="ml-2 text-xs text-cyan-300">{t('leaderboard.you')}</span> : null}
                     </p>
-                    <p className='text-xs text-muted'>
+                    <p className="text-xs text-muted">
                       {t('leaderboard.levelStreak', { lvl: levelFromXp(e.totalXp), n: e.currentStreak })}
                     </p>
                   </div>
-                  <span className='text-sm font-bold text-amber-400'>{e.totalXp} XP</span>
+                  <span className="text-sm font-black text-cyan-200">{e.totalXp} XP</span>
                 </li>
               )
             })}
