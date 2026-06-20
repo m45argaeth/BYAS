@@ -6,7 +6,9 @@ const BG: Record<Rarity, [string, string]> = {
   common: ['#475569', '#1e293b'],
   uncommon: ['#10b981', '#065f46'],
   rare: ['#0ea5e9', '#3730a3'],
+  epic: ['#8b5cf6', '#4c1d95'],
   legendary: ['#f59e0b', '#c2410c'],
+  mythic: ['#f472b6', '#831843'],
 }
 
 function slug(s: string): string {
