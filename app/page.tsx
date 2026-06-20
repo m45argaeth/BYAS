@@ -29,43 +29,6 @@ function haptic(ms: number) {
   try { navigator.vibrate?.(ms) } catch {}
 }
 
-// ---------- Molecular network background (deterministic) ----------
-function buildMolecules() {
-  const nodes = Array.from({ length: 24 }, (_, i) => {
-    const sx = Math.abs(Math.sin((i + 1) * 12.9898) * 43758.5453) % 1
-    const sy = Math.abs(Math.sin((i + 1) * 78.233) * 12543.123) % 1
-    return { id: i, x: 4 + sx * 92, y: 4 + sy * 92, r: 0.9 + (i % 4) * 0.5, accent: i % 3 === 0 }
-  })
-  const edges: Array<{ a: number; b: number }> = []
-  for (let i = 0; i < nodes.length; i++) {
-    const near = nodes
-      .map((n, j) => ({ j, d: (n.x - nodes[i].x) ** 2 + (n.y - nodes[i].y) ** 2 }))
-      .filter((e) => e.j !== i)
-      .sort((a, b) => a.d - b.d)
-      .slice(0, 2)
-    for (const e of near) {
-      if (!edges.some((x) => (x.a === i && x.b === e.j) || (x.a === e.j && x.b === i))) edges.push({ a: i, b: e.j })
-    }
-  }
-  return { nodes, edges }
-}
-const MOLECULES = buildMolecules()
-
-function MolecularField() {
-  return (
-    <svg className="lab-molecules" viewBox="0 0 100 100" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
-      <g className="molecule-drift">
-        {MOLECULES.edges.map((e, i) => (
-          <line key={`e-${i}`} x1={MOLECULES.nodes[e.a].x} y1={MOLECULES.nodes[e.a].y} x2={MOLECULES.nodes[e.b].x} y2={MOLECULES.nodes[e.b].y} className="molecule-edge" />
-        ))}
-        {MOLECULES.nodes.map((n) => (
-          <circle key={`n-${n.id}`} cx={n.x} cy={n.y} r={n.r} className={`molecule-node ${n.accent ? 'accent' : ''}`} style={{ animationDelay: `${(n.id % 6) * 0.4}s` }} />
-        ))}
-      </g>
-    </svg>
-  )
-}
-
 type ReactorState = 'idle' | 'ready' | 'reacting' | 'success' | 'failed'
 type SideTab = 'quests' | 'rewards' | 'progress'
 type AchToast = { emoji: string; title: string; label: string }
@@ -140,7 +103,7 @@ function SpecimenTile({ element, selected, onSelect, onDragStart }: { element: E
       className={`specimen-tile ${selected ? 'is-selected' : ''}`}
       style={{
         '--specimen-glow': colors.ring,
-        '--specimen-border': selected ? colors.glow : 'rgba(255,255,255,0.12)',
+        '--specimen-border': selected ? colors.glow : 'var(--border)',
       } as CSSProperties}
     >
       <span className="specimen-number">{element.atomicNumber ?? '∞'}</span>
@@ -179,11 +142,6 @@ function ReactionChamber({ selected, state, dragOver, onRun, onClear, onDropSpec
       onDragLeave={(e) => { if (e.currentTarget === e.target) onDragStateChange(false) }}
       onDrop={(e) => { e.preventDefault(); const id = e.dataTransfer.getData('text/plain'); if (id) onDropSpecimen(id); onDragStateChange(false) }}
     >
-      <div className="chamber-halo" aria-hidden />
-      <div className="chamber-bg" />
-      <div className="chamber-orbit orbit-one" />
-      <div className="chamber-orbit orbit-two" />
-      <div className="chamber-orbit orbit-three" />
       <div className="chamber-core">
         <div className="chamber-slots">
           <ChamberSlot element={selected[0]} label="Specimen A" onRemove={() => onRemoveSpecimen(0)} />
@@ -407,11 +365,11 @@ export default function Home() {
 
   const spawnParticles = useCallback((success: boolean, rarity: keyof typeof RARITY_GLOW = 'rare') => {
     const palette = success ? ['#38bdf8', '#818cf8', '#a78bfa', '#f472b6', '#fbbf24', '#34d399'] : ['#fb7185', '#f97316', '#fca5a5']
-    const count = success ? 42 : 14
-    const spread = success ? 320 : 120
-    const arr = Array.from({ length: count }, (_, i) => ({ id: i, x: (Math.random() - 0.5) * spread, y: (Math.random() - 0.5) * spread - 40, color: palette[i % palette.length], size: 4 + Math.random() * (success ? 12 : 7), delay: Math.random() * 0.22 }))
+    const count = success ? 28 : 12
+    const spread = success ? 280 : 120
+    const arr = Array.from({ length: count }, (_, i) => ({ id: i, x: (Math.random() - 0.5) * spread, y: (Math.random() - 0.5) * spread - 40, color: palette[i % palette.length], size: 4 + Math.random() * (success ? 10 : 6), delay: Math.random() * 0.22 }))
     setParticles(arr)
-    setTimeout(() => setParticles([]), 1500)
+    setTimeout(() => setParticles([]), 1400)
   }, [])
 
   function toggle(id: string) {
@@ -595,9 +553,6 @@ export default function Home() {
 
   return (
     <main className="lab-shell">
-      <div className="lab-ambient" aria-hidden />
-      <MolecularField />
-      <div className="lab-vignette" aria-hidden />
       <ParticleBurst particles={particles} />
       <header className="lab-topbar">
         <Link href="/pokedex" className="lab-nav-chip">📒 Archive</Link>
@@ -635,10 +590,10 @@ export default function Home() {
         <div className="lab-side-stage">
           <div className="flex gap-2" role="tablist" aria-label="Lab panels">
             <button type="button" role="tab" aria-selected={sideTab === 'quests'} onClick={() => setSideTab('quests')} className={`lab-nav-chip relative flex-1 text-center ${sideTab === 'quests' ? 'lab-nav-primary' : ''}`}>
-              🎯 Quests{questsClaimable ? <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-cyan-400 shadow-[0_0_8px_rgba(56,189,248,0.9)]" aria-label="reward ready" /> : null}
+              🎯 Quests{questsClaimable ? <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-cyan-400" aria-label="reward ready" /> : null}
             </button>
             <button type="button" role="tab" aria-selected={sideTab === 'rewards'} onClick={() => setSideTab('rewards')} className={`lab-nav-chip relative flex-1 text-center ${sideTab === 'rewards' ? 'lab-nav-primary' : ''}`}>
-              🏆 Rewards{rewardsClaimable ? <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-cyan-400 shadow-[0_0_8px_rgba(56,189,248,0.9)]" aria-label="reward ready" /> : null}
+              🏆 Rewards{rewardsClaimable ? <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-cyan-400" aria-label="reward ready" /> : null}
             </button>
             <button type="button" role="tab" aria-selected={sideTab === 'progress'} onClick={() => setSideTab('progress')} className={`lab-nav-chip flex-1 text-center ${sideTab === 'progress' ? 'lab-nav-primary' : ''}`}>
               📊 Progress
@@ -668,7 +623,7 @@ export default function Home() {
       {showAuth && <AuthModal onClose={() => setShowAuth(false)} />}
       {showSettings && <SettingsModal onClose={() => setShowSettings(false)} />}
       {achToast && <AchievementToast emoji={achToast.emoji} title={achToast.title} label={achToast.label} />}
-      {msg && <div className="toast-enter fixed bottom-6 left-1/2 z-50 -translate-x-1/2 rounded-2xl border border-white/10 bg-slate-950/92 px-4 py-3 text-sm text-white shadow-2xl backdrop-blur" role="status">{msg}</div>}
+      {msg && <div className="toast-enter fixed bottom-6 left-1/2 z-50 -translate-x-1/2 rounded-2xl border border-white/10 bg-slate-950/92 px-4 py-3 text-sm text-white shadow-2xl" role="status">{msg}</div>}
     </main>
   )
 }
