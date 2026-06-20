@@ -1,47 +1,53 @@
 import type { Discovery, Stats } from './types'
-import { levelFromXp, totalXpFromDiscoveries } from './progress'
 
-export interface AchievementDef {
+export interface Achievement {
   id: string
   emoji: string
+  // i18n key suffix -> ach.<id>.title / ach.<id>.desc
 }
 
-export const ACHIEVEMENTS: AchievementDef[] = [
-  { id: 'first', emoji: '🌱' },
+export const ACHIEVEMENTS: Achievement[] = [
+  { id: 'first', emoji: '🧪' },
   { id: 'ten', emoji: '🔟' },
-  { id: 'collector', emoji: '📦' },
+  { id: 'collector', emoji: '📚' },
   { id: 'legendary', emoji: '👑' },
   { id: 'streak7', emoji: '🔥' },
   { id: 'level5', emoji: '⭐' },
 ]
 
-export function computeUnlocked(discoveries: Discovery[], stats: Stats): string[] {
-  const out: string[] = []
-  const n = discoveries.length
-  const level = levelFromXp(totalXpFromDiscoveries(discoveries))
-  if (n >= 1) out.push('first')
-  if (n >= 10) out.push('ten')
-  if (n >= 25) out.push('collector')
-  if (discoveries.some((d) => d.rarity === 'legendary')) out.push('legendary')
-  if (stats.bestStreak >= 7) out.push('streak7')
-  if (level >= 5) out.push('level5')
-  return out
+// Returns the set of unlocked achievement ids given current progress.
+export function computeUnlocked(discoveries: Discovery[], stats: Stats, level: number): Set<string> {
+  const unlocked = new Set<string>()
+  const count = discoveries.length
+  const hasLegendary = discoveries.some((d) => d.rarity === 'legendary')
+
+  if (count >= 1) unlocked.add('first')
+  if (count >= 10) unlocked.add('ten')
+  if (count >= 30) unlocked.add('collector')
+  if (hasLegendary) unlocked.add('legendary')
+  if ((stats.bestStreak ?? 0) >= 7) unlocked.add('streak7')
+  if (level >= 5) unlocked.add('level5')
+
+  return unlocked
 }
 
-const ACH_KEY = 'byas_achievements'
+const KEY = 'byas_achievements'
 
-export function loadSeen(): string[] {
-  if (typeof window === 'undefined') return []
+export function loadSeen(): Set<string> {
+  if (typeof window === 'undefined') return new Set()
   try {
-    return JSON.parse(localStorage.getItem(ACH_KEY) || '[]') as string[]
+    const raw = localStorage.getItem(KEY)
+    if (!raw) return new Set()
+    const arr = JSON.parse(raw) as string[]
+    return new Set(Array.isArray(arr) ? arr : [])
   } catch {
-    return []
+    return new Set()
   }
 }
 
-export function saveSeen(ids: string[]): void {
+export function saveSeen(ids: Set<string>) {
   if (typeof window === 'undefined') return
   try {
-    localStorage.setItem(ACH_KEY, JSON.stringify(ids))
+    localStorage.setItem(KEY, JSON.stringify([...ids]))
   } catch {}
 }

@@ -1,14 +1,29 @@
-// System API keys from env (comma-separated), with simple rotation + rate-limit cooldown.
-const SYSTEM_KEYS = (process.env.MIMO_KEYS ?? '')
-  .split(',')
-  .map((s) => s.trim())
-  .filter(Boolean)
+// System-side Mimo API key rotation with simple rate-limit cooldown.
+// Player BYOK key always takes priority over system keys.
 
+const rateLimited = new Map<string, number>()
 const COOLDOWN_MS = 60_000
-const cooldown = new Map<string, number>()
 
-export function markRateLimited(key: string): void {
-  cooldown.set(key, Date.now() + COOLDOWN_MS)
+export function markRateLimited(key: string) {
+  rateLimited.set(key, Date.now() + COOLDOWN_MS)
+}
+
+function isAvailable(key: string): boolean {
+  const until = rateLimited.get(key)
+  if (!until) return true
+  if (Date.now() > until) {
+    rateLimited.delete(key)
+    return true
+  }
+  return false
+}
+
+function systemKeys(): string[] {
+  const raw = process.env.MIMO_KEYS || ''
+  return raw
+    .split(',')
+    .map((k) => k.trim())
+    .filter(Boolean)
 }
 
 function shuffle<T>(arr: T[]): T[] {
@@ -22,18 +37,10 @@ function shuffle<T>(arr: T[]): T[] {
   return a
 }
 
-function availableSystemKeys(): string[] {
-  const now = Date.now()
-  const avail = SYSTEM_KEYS.filter((k) => (cooldown.get(k) ?? 0) < now)
-  return avail.length ? avail : SYSTEM_KEYS
-}
-
-export function pickSystemKey(): string | undefined {
-  return shuffle(availableSystemKeys())[0]
-}
-
-// Returns the ordered list of keys to try. BYOK (player key) takes priority and is used alone.
 export function resolveKeys(playerKey?: string): string[] {
-  if (playerKey) return [playerKey]
-  return shuffle(availableSystemKeys())
+  if (playerKey && playerKey.trim()) return [playerKey.trim()]
+  const all = systemKeys()
+  const available = all.filter(isAvailable)
+  const pool = available.length ? available : all
+  return shuffle(pool)
 }
