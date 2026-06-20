@@ -269,8 +269,6 @@ export default function Home() {
     return () => window.removeEventListener('keydown', onKey)
   }, [selected, loading, combine, discovery])
 
-  const ctaReady = selEls.length === 2 && reactorState !== 'reacting'
-
   return (
     <div className="app">
       <ParticleBurst particles={particles} />
@@ -308,12 +306,6 @@ export default function Home() {
             </div>
           </section>
         </div>
-      </div>
-
-      <div className="cta-dock">
-        <button type="button" className="cta-run" onClick={combine} disabled={!ctaReady}>
-          {reactorState === 'reacting' ? 'Synthesizing…' : ctaReady ? 'Run Experiment' : 'Pick 2 specimens'}
-        </button>
       </div>
 
       <BottomNav />
