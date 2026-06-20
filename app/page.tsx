@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState, type CSSProperties } from 'react'
+import { useCallback, useEffect, useMemo, useState, type CSSProperties, type DragEvent } from 'react'
 import Link from 'next/link'
 import { buildStarters, GROUP_COLORS } from '@/lib/elements'
 import type { CombineResult, Discovery, Element, ElementGroup, Stats } from '@/lib/types'
@@ -23,6 +23,10 @@ import { ACHIEVEMENTS, computeUnlocked, loadSeen, saveSeen } from '@/lib/achieve
 import { RARITY_GLOW, RARITY_LABEL } from '@/lib/rarity'
 
 const DEFAULT_STATS: Stats = { currentStreak: 0, bestStreak: 0, lastPlayed: null, displayName: null, hintTokens: 0, coins: 0, bonusXp: 0, failedExperiments: 0 }
+
+function haptic(ms: number) {
+  try { navigator.vibrate?.(ms) } catch {}
+}
 
 type ReactorState = 'idle' | 'ready' | 'reacting' | 'success' | 'failed'
 type AchToast = { emoji: string; title: string; label: string }
@@ -82,7 +86,7 @@ function LabStatus({ discoveries, stats }: { discoveries: Discovery[]; stats: St
   )
 }
 
-function SpecimenTile({ element, selected, onSelect }: { element: Element; selected: boolean; onSelect: () => void }) {
+function SpecimenTile({ element, selected, onSelect, onDragStart }: { element: Element; selected: boolean; onSelect: () => void; onDragStart: (e: DragEvent<HTMLButtonElement>) => void }) {
   const group: ElementGroup = element.group ?? 'unknown'
   const colors = GROUP_COLORS[group]
   const symbol = element.id.length <= 3 ? element.id : element.emoji
@@ -91,6 +95,8 @@ function SpecimenTile({ element, selected, onSelect }: { element: Element; selec
       type="button"
       aria-pressed={selected}
       onClick={onSelect}
+      draggable
+      onDragStart={onDragStart}
       className={`specimen-tile ${selected ? 'is-selected' : ''}`}
       style={{
         '--specimen-glow': colors.ring,
@@ -121,11 +127,17 @@ function ChamberSlot({ element, label }: { element?: Element; label: string }) {
   )
 }
 
-function ReactionChamber({ selected, state, onRun, onClear }: { selected: Element[]; state: ReactorState; onRun: () => void; onClear: () => void }) {
+function ReactionChamber({ selected, state, dragOver, onRun, onClear, onDropSpecimen, onDragStateChange }: { selected: Element[]; state: ReactorState; dragOver: boolean; onRun: () => void; onClear: () => void; onDropSpecimen: (id: string) => void; onDragStateChange: (v: boolean) => void }) {
   const ready = selected.length === 2 && state !== 'reacting'
   const status = state === 'reacting' ? 'Reaction in progress' : ready ? 'Ready to run experiment' : 'Insert two specimens'
   return (
-    <section className={`reaction-chamber state-${state}`} aria-live="polite">
+    <section
+      className={`reaction-chamber state-${state} ${dragOver ? 'chamber-drop-active' : ''}`}
+      aria-live="polite"
+      onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; if (!dragOver) onDragStateChange(true) }}
+      onDragLeave={(e) => { if (e.currentTarget === e.target) onDragStateChange(false) }}
+      onDrop={(e) => { e.preventDefault(); const id = e.dataTransfer.getData('text/plain'); if (id) onDropSpecimen(id); onDragStateChange(false) }}
+    >
       <div className="chamber-bg" />
       <div className="chamber-orbit orbit-one" />
       <div className="chamber-orbit orbit-two" />
@@ -137,12 +149,13 @@ function ReactionChamber({ selected, state, onRun, onClear }: { selected: Elemen
         </div>
         <p className="mt-5 text-xs font-black uppercase tracking-[0.28em] text-cyan-100/60">Reaction Chamber</p>
         <h2>{status}</h2>
-        <div className="mt-5 flex gap-2">
+        <div className="mt-5 flex justify-center gap-2">
           <button type="button" onClick={onRun} disabled={!ready} className="lab-button-primary min-w-44 disabled:cursor-not-allowed disabled:opacity-40">
             {state === 'reacting' ? 'Synthesizing…' : 'Run Experiment'}
           </button>
           {selected.length ? <button type="button" onClick={onClear} className="lab-button">Clear</button> : null}
         </div>
+        <p className="chamber-hint">Tarik specimen ke chamber, atau tap untuk memilih</p>
       </div>
     </section>
   )
@@ -228,6 +241,7 @@ export default function Home() {
   const [showSettings, setShowSettings] = useState(false)
   const [reactorState, setReactorState] = useState<ReactorState>('idle')
   const [particles, setParticles] = useState<Particle[]>([])
+  const [dragOver, setDragOver] = useState(false)
 
   useEffect(() => {
     setDiscoveries(loadDiscoveries())
@@ -271,7 +285,14 @@ export default function Home() {
 
   function toggle(id: string) {
     playPop()
+    haptic(6)
     setSelected((prev) => prev.includes(id) ? prev.filter((x) => x !== id) : prev.length >= 2 ? [prev[1], id] : [...prev, id])
+  }
+
+  function addToChamber(id: string) {
+    playPop()
+    haptic(10)
+    setSelected((prev) => prev.includes(id) ? prev : prev.length >= 2 ? [prev[1], id] : [...prev, id])
   }
 
   function showToast(text: string) { setMsg(text); setTimeout(() => setMsg(null), 2600) }
@@ -300,6 +321,7 @@ export default function Home() {
     setStats(ns)
     saveStats(ns)
     playUnlock()
+    haptic(18)
     showToast(`Daily claimed! +${ch.rewardXp} XP · +${ch.rewardCoins} coins · +${ch.rewardHints} hint`)
     if (user) pushStats(user.id, ns, totalXp(discoveries, ns)).catch(() => {})
   }
@@ -333,10 +355,11 @@ export default function Home() {
       const data = await res.json()
       if (!res.ok || data.error) { playError(); setReactorState('failed'); spawnParticles(false); showToast('Experiment failed: ' + (data?.error ?? 'combine')); return }
       const result = data as CombineResult
-      if (!result.reacted) { playError(); setReactorState('failed'); spawnParticles(false); showToast('No stable reaction detected.'); setSelected([]); return }
+      if (!result.reacted) { playError(); haptic(40); setReactorState('failed'); spawnParticles(false); showToast('No stable reaction detected.'); setSelected([]); return }
       setReactorState('success')
       spawnParticles(true, result.rarity)
       playReactionBurst()
+      haptic(22)
       const ns = recordPlay(stats)
       const xpGain = xpForNewDiscovery(result, ns.currentStreak || 0)
       const disc: Discovery = { ...result, discoveredAt: Date.now(), xp: xpGain }
@@ -379,14 +402,22 @@ export default function Home() {
 
       <div className="lab-grid">
         <div className="lab-main-stage">
-          <ReactionChamber selected={selEls} state={reactorState} onRun={combine} onClear={() => setSelected([])} />
+          <ReactionChamber selected={selEls} state={reactorState} dragOver={dragOver} onRun={combine} onClear={() => setSelected([])} onDropSpecimen={addToChamber} onDragStateChange={setDragOver} />
           <section className="specimen-dock" aria-label="Specimen dock">
             <div className="mb-3 flex items-center justify-between gap-3">
               <div><p className="lab-eyebrow">Specimen Dock</p><h3>Choose two materials</h3></div>
               {selected.length ? <button onClick={() => setSelected([])} className="text-xs font-bold text-cyan-200/70 underline" type="button">clear selection</button> : null}
             </div>
             <div className="specimen-grid">
-              {inventory.map((el) => <SpecimenTile key={el.id} element={el} selected={selected.includes(el.id)} onSelect={() => toggle(el.id)} />)}
+              {inventory.map((el) => (
+                <SpecimenTile
+                  key={el.id}
+                  element={el}
+                  selected={selected.includes(el.id)}
+                  onSelect={() => toggle(el.id)}
+                  onDragStart={(e) => { e.dataTransfer.setData('text/plain', el.id); e.dataTransfer.effectAllowed = 'move' }}
+                />
+              ))}
             </div>
           </section>
         </div>
