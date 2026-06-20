@@ -29,6 +29,43 @@ function haptic(ms: number) {
   try { navigator.vibrate?.(ms) } catch {}
 }
 
+// ---------- Molecular network background (deterministic) ----------
+function buildMolecules() {
+  const nodes = Array.from({ length: 24 }, (_, i) => {
+    const sx = Math.abs(Math.sin((i + 1) * 12.9898) * 43758.5453) % 1
+    const sy = Math.abs(Math.sin((i + 1) * 78.233) * 12543.123) % 1
+    return { id: i, x: 4 + sx * 92, y: 4 + sy * 92, r: 0.9 + (i % 4) * 0.5, accent: i % 3 === 0 }
+  })
+  const edges: Array<{ a: number; b: number }> = []
+  for (let i = 0; i < nodes.length; i++) {
+    const near = nodes
+      .map((n, j) => ({ j, d: (n.x - nodes[i].x) ** 2 + (n.y - nodes[i].y) ** 2 }))
+      .filter((e) => e.j !== i)
+      .sort((a, b) => a.d - b.d)
+      .slice(0, 2)
+    for (const e of near) {
+      if (!edges.some((x) => (x.a === i && x.b === e.j) || (x.a === e.j && x.b === i))) edges.push({ a: i, b: e.j })
+    }
+  }
+  return { nodes, edges }
+}
+const MOLECULES = buildMolecules()
+
+function MolecularField() {
+  return (
+    <svg className="lab-molecules" viewBox="0 0 100 100" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+      <g className="molecule-drift">
+        {MOLECULES.edges.map((e, i) => (
+          <line key={`e-${i}`} x1={MOLECULES.nodes[e.a].x} y1={MOLECULES.nodes[e.a].y} x2={MOLECULES.nodes[e.b].x} y2={MOLECULES.nodes[e.b].y} className="molecule-edge" />
+        ))}
+        {MOLECULES.nodes.map((n) => (
+          <circle key={`n-${n.id}`} cx={n.x} cy={n.y} r={n.r} className={`molecule-node ${n.accent ? 'accent' : ''}`} style={{ animationDelay: `${(n.id % 6) * 0.4}s` }} />
+        ))}
+      </g>
+    </svg>
+  )
+}
+
 type ReactorState = 'idle' | 'ready' | 'reacting' | 'success' | 'failed'
 type AchToast = { emoji: string; title: string; label: string }
 
@@ -95,6 +132,7 @@ function SpecimenTile({ element, selected, onSelect, onDragStart }: { element: E
     <button
       type="button"
       aria-pressed={selected}
+      aria-label={`${element.name}${element.rarity ? `, ${element.rarity}` : ''}. ${selected ? 'Selected' : 'Tap to select, drag to chamber'}`}
       onClick={onSelect}
       draggable
       onDragStart={onDragStart}
@@ -112,7 +150,7 @@ function SpecimenTile({ element, selected, onSelect, onDragStart }: { element: E
   )
 }
 
-function ChamberSlot({ element, label }: { element?: Element; label: string }) {
+function ChamberSlot({ element, label, onRemove }: { element?: Element; label: string; onRemove: () => void }) {
   if (!element) {
     return <div className="chamber-slot empty"><span>{label}</span></div>
   }
@@ -120,33 +158,36 @@ function ChamberSlot({ element, label }: { element?: Element; label: string }) {
   const colors = GROUP_COLORS[group]
   const symbol = element.id.length <= 3 ? element.id : element.emoji
   return (
-    <div className="chamber-slot filled" style={{ '--slot-glow': colors.ring } as CSSProperties}>
+    <button type="button" onClick={onRemove} aria-label={`Remove ${element.name} from chamber`} className="chamber-slot filled" style={{ '--slot-glow': colors.ring } as CSSProperties}>
       <small>{element.atomicNumber ?? '∞'}</small>
       <strong>{symbol}</strong>
       <span>{element.name}</span>
-    </div>
+    </button>
   )
 }
 
-function ReactionChamber({ selected, state, dragOver, onRun, onClear, onDropSpecimen, onDragStateChange }: { selected: Element[]; state: ReactorState; dragOver: boolean; onRun: () => void; onClear: () => void; onDropSpecimen: (id: string) => void; onDragStateChange: (v: boolean) => void }) {
+function ReactionChamber({ selected, state, dragOver, onRun, onClear, onDropSpecimen, onRemoveSpecimen, onDragStateChange }: { selected: Element[]; state: ReactorState; dragOver: boolean; onRun: () => void; onClear: () => void; onDropSpecimen: (id: string) => void; onRemoveSpecimen: (index: number) => void; onDragStateChange: (v: boolean) => void }) {
   const ready = selected.length === 2 && state !== 'reacting'
   const status = state === 'reacting' ? 'Reaction in progress' : ready ? 'Ready to run experiment' : 'Insert two specimens'
   return (
     <section
       className={`reaction-chamber state-${state} ${dragOver ? 'chamber-drop-active' : ''}`}
+      aria-label="Reaction chamber"
       aria-live="polite"
       onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; if (!dragOver) onDragStateChange(true) }}
       onDragLeave={(e) => { if (e.currentTarget === e.target) onDragStateChange(false) }}
       onDrop={(e) => { e.preventDefault(); const id = e.dataTransfer.getData('text/plain'); if (id) onDropSpecimen(id); onDragStateChange(false) }}
     >
+      <div className="chamber-halo" aria-hidden />
       <div className="chamber-bg" />
       <div className="chamber-orbit orbit-one" />
       <div className="chamber-orbit orbit-two" />
+      <div className="chamber-orbit orbit-three" />
       <div className="chamber-core">
         <div className="chamber-slots">
-          <ChamberSlot element={selected[0]} label="Specimen A" />
+          <ChamberSlot element={selected[0]} label="Specimen A" onRemove={() => onRemoveSpecimen(0)} />
           <div className="chamber-plus">+</div>
-          <ChamberSlot element={selected[1]} label="Specimen B" />
+          <ChamberSlot element={selected[1]} label="Specimen B" onRemove={() => onRemoveSpecimen(1)} />
         </div>
         <p className="mt-5 text-xs font-black uppercase tracking-[0.28em] text-cyan-100/60">Reaction Chamber</p>
         <h2>{status}</h2>
@@ -156,7 +197,7 @@ function ReactionChamber({ selected, state, dragOver, onRun, onClear, onDropSpec
           </button>
           {selected.length ? <button type="button" onClick={onClear} className="lab-button">Clear</button> : null}
         </div>
-        <p className="chamber-hint">Tarik specimen ke chamber, atau tap untuk memilih</p>
+        <p className="chamber-hint">Tarik specimen ke chamber, atau tekan <span className="kbd-hint"><kbd>Enter</kbd></span> untuk reaksi · <span className="kbd-hint"><kbd>Esc</kbd></span> reset</p>
       </div>
     </section>
   )
@@ -482,7 +523,7 @@ export default function Home() {
     saveSeen(unlocked)
   }
 
-  async function combine() {
+  const combine = useCallback(async () => {
     if (selected.length !== 2 || loading) return
     const a = inventory.find((e) => e.id === selected[0])
     const b = inventory.find((e) => e.id === selected[1])
@@ -524,26 +565,42 @@ export default function Home() {
       setLoading(false)
       setTimeout(() => setReactorState('idle'), 900)
     }
-  }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selected, loading, inventory, apiKey, lang, stats, discoveries, user, spawnParticles])
+
+  // Keyboard combine + reset (a11y)
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      const tag = (e.target as HTMLElement | null)?.tagName
+      if (tag === 'INPUT' || tag === 'TEXTAREA') return
+      if (discovery || showKey || showAuth || showSettings) return
+      if (e.key === 'Enter' && selected.length === 2 && !loading) { e.preventDefault(); combine() }
+      else if ((e.key === 'Escape' || e.key === 'Backspace') && selected.length) { e.preventDefault(); setSelected([]) }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [selected, loading, combine, discovery, showKey, showAuth, showSettings])
 
   return (
     <main className="lab-shell">
       <div className="lab-ambient" aria-hidden />
+      <MolecularField />
+      <div className="lab-vignette" aria-hidden />
       <ParticleBurst particles={particles} />
       <header className="lab-topbar">
         <Link href="/pokedex" className="lab-nav-chip">📒 Archive</Link>
         <Link href="/leaderboard" className="lab-nav-chip">🏆 Reputation</Link>
-        <button onClick={toggleTheme} className="lab-nav-chip" type="button">{theme === 'dark' ? '☀️' : '🌙'} Theme</button>
-        <button onClick={() => setShowSettings(true)} className="lab-nav-chip" type="button">⚙️</button>
-        <button onClick={() => setShowKey(true)} className="lab-nav-chip" type="button">🔑</button>
-        {user ? <button onClick={signOut} className="lab-nav-chip" type="button">👤</button> : <button onClick={() => setShowAuth(true)} className="lab-nav-chip lab-nav-primary" type="button">Login</button>}
+        <button onClick={toggleTheme} className="lab-nav-chip" type="button" aria-label="Toggle theme">{theme === 'dark' ? '☀️' : '🌙'} Theme</button>
+        <button onClick={() => setShowSettings(true)} className="lab-nav-chip" type="button" aria-label="Settings">⚙️</button>
+        <button onClick={() => setShowKey(true)} className="lab-nav-chip" type="button" aria-label="API key">🔑</button>
+        {user ? <button onClick={signOut} className="lab-nav-chip" type="button" aria-label="Sign out">👤</button> : <button onClick={() => setShowAuth(true)} className="lab-nav-chip lab-nav-primary" type="button">Login</button>}
       </header>
 
       <LabStatus discoveries={discoveries} stats={stats} />
 
       <div className="lab-grid">
         <div className="lab-main-stage">
-          <ReactionChamber selected={selEls} state={reactorState} dragOver={dragOver} onRun={combine} onClear={() => setSelected([])} onDropSpecimen={addToChamber} onDragStateChange={setDragOver} />
+          <ReactionChamber selected={selEls} state={reactorState} dragOver={dragOver} onRun={combine} onClear={() => setSelected([])} onDropSpecimen={addToChamber} onRemoveSpecimen={(i) => setSelected((prev) => prev.filter((_, idx) => idx !== i))} onDragStateChange={setDragOver} />
           <section className="specimen-dock" aria-label="Specimen dock">
             <div className="mb-3 flex items-center justify-between gap-3">
               <div><p className="lab-eyebrow">Specimen Dock</p><h3>Choose two materials</h3></div>
@@ -579,7 +636,7 @@ export default function Home() {
       {showAuth && <AuthModal onClose={() => setShowAuth(false)} />}
       {showSettings && <SettingsModal onClose={() => setShowSettings(false)} />}
       {achToast && <AchievementToast emoji={achToast.emoji} title={achToast.title} label={achToast.label} />}
-      {msg && <div className="toast-enter fixed bottom-6 left-1/2 z-50 -translate-x-1/2 rounded-2xl border border-white/10 bg-slate-950/92 px-4 py-3 text-sm text-white shadow-2xl backdrop-blur">{msg}</div>}
+      {msg && <div className="toast-enter fixed bottom-6 left-1/2 z-50 -translate-x-1/2 rounded-2xl border border-white/10 bg-slate-950/92 px-4 py-3 text-sm text-white shadow-2xl backdrop-blur" role="status">{msg}</div>}
     </main>
   )
 }
