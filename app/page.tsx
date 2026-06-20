@@ -67,6 +67,7 @@ function MolecularField() {
 }
 
 type ReactorState = 'idle' | 'ready' | 'reacting' | 'success' | 'failed'
+type SideTab = 'quests' | 'rewards' | 'progress'
 type AchToast = { emoji: string; title: string; label: string }
 
 type Particle = { id: number; x: number; y: number; color: string; size: number; delay: number }
@@ -371,6 +372,7 @@ export default function Home() {
   const [reactorState, setReactorState] = useState<ReactorState>('idle')
   const [particles, setParticles] = useState<Particle[]>([])
   const [dragOver, setDragOver] = useState(false)
+  const [sideTab, setSideTab] = useState<SideTab>('quests')
 
   useEffect(() => {
     setDiscoveries(loadDiscoveries())
@@ -581,6 +583,16 @@ export default function Home() {
     return () => window.removeEventListener('keydown', onKey)
   }, [selected, loading, combine, discovery, showKey, showAuth, showSettings])
 
+  // Indikator reward yang siap di-claim (untuk badge tab)
+  const dailyCh = getDailyChallenge()
+  const weeklyQ = getWeeklyQuest()
+  const mystery = getMystery()
+  const questsClaimable =
+    (isDailyComplete(dailyCh, discoveries) && !isDailyClaimed(dailyCh, stats)) ||
+    (isWeeklyComplete(weeklyQ, discoveries) && !isWeeklyClaimed(weeklyQ, stats)) ||
+    (isMysterySolved(mystery, discoveries) && !isMysteryClaimed(mystery, stats))
+  const rewardsClaimable = STREAK_TIERS.some((t) => isStreakReached(t.days, stats) && !isStreakClaimed(t.days, stats))
+
   return (
     <main className="lab-shell">
       <div className="lab-ambient" aria-hidden />
@@ -621,13 +633,33 @@ export default function Home() {
         </div>
 
         <div className="lab-side-stage">
-          <DailyResearchPanel discoveries={discoveries} stats={stats} onClaim={claimDaily} />
-          <MysteryResearchPanel discoveries={discoveries} stats={stats} onClaim={claimMystery} onUseHint={useMysteryHint} />
-          <WeeklyQuestPanel discoveries={discoveries} stats={stats} onClaim={claimWeekly} />
-          <StreakLadderPanel stats={stats} onClaim={claimStreak} />
-          <CollectionPanel discoveries={discoveries} />
-          <MasteryPanel discoveries={discoveries} />
-          <ResearchLog discoveries={discoveries} />
+          <div className="flex gap-2" role="tablist" aria-label="Lab panels">
+            <button type="button" role="tab" aria-selected={sideTab === 'quests'} onClick={() => setSideTab('quests')} className={`lab-nav-chip relative flex-1 text-center ${sideTab === 'quests' ? 'lab-nav-primary' : ''}`}>
+              🎯 Quests{questsClaimable ? <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-cyan-400 shadow-[0_0_8px_rgba(56,189,248,0.9)]" aria-label="reward ready" /> : null}
+            </button>
+            <button type="button" role="tab" aria-selected={sideTab === 'rewards'} onClick={() => setSideTab('rewards')} className={`lab-nav-chip relative flex-1 text-center ${sideTab === 'rewards' ? 'lab-nav-primary' : ''}`}>
+              🏆 Rewards{rewardsClaimable ? <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-cyan-400 shadow-[0_0_8px_rgba(56,189,248,0.9)]" aria-label="reward ready" /> : null}
+            </button>
+            <button type="button" role="tab" aria-selected={sideTab === 'progress'} onClick={() => setSideTab('progress')} className={`lab-nav-chip flex-1 text-center ${sideTab === 'progress' ? 'lab-nav-primary' : ''}`}>
+              📊 Progress
+            </button>
+          </div>
+
+          {sideTab === 'quests' && (
+            <>
+              <DailyResearchPanel discoveries={discoveries} stats={stats} onClaim={claimDaily} />
+              <MysteryResearchPanel discoveries={discoveries} stats={stats} onClaim={claimMystery} onUseHint={useMysteryHint} />
+              <WeeklyQuestPanel discoveries={discoveries} stats={stats} onClaim={claimWeekly} />
+            </>
+          )}
+          {sideTab === 'rewards' && <StreakLadderPanel stats={stats} onClaim={claimStreak} />}
+          {sideTab === 'progress' && (
+            <>
+              <CollectionPanel discoveries={discoveries} />
+              <MasteryPanel discoveries={discoveries} />
+              <ResearchLog discoveries={discoveries} />
+            </>
+          )}
         </div>
       </div>
 
