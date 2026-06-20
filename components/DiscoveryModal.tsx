@@ -1,7 +1,9 @@
 'use client'
 
 import type { CombineResult } from '@/lib/types'
-import { RARITY_GRADIENT, RARITY_LABEL } from '@/lib/rarity'
+import { RARITY_GRADIENT } from '@/lib/rarity'
+import { useI18n } from '@/lib/i18n'
+import { shareDiscovery } from '@/lib/share'
 
 export function DiscoveryModal({
   result,
@@ -10,52 +12,65 @@ export function DiscoveryModal({
   onClose,
 }: {
   result: CombineResult
-  isNew: boolean
+  isNew?: boolean
   xpGain?: number
   onClose: () => void
 }) {
-  const style = RARITY_GRADIENT[result.rarity] ?? RARITY_GRADIENT.common
+  const { t } = useI18n()
+  const grad = RARITY_GRADIENT[result.rarity] ?? RARITY_GRADIENT.common
+  const headerCls = 'bg-gradient-to-br ' + grad + ' p-6 text-center text-white'
+  const rarityLabel = t('rarity.' + result.rarity)
+
+  function onShare() {
+    void shareDiscovery(result, rarityLabel)
+  }
+
+  function stop(e: React.MouseEvent) {
+    e.stopPropagation()
+  }
+
   return (
     <div
-      className='fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4'
+      className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 sm:items-center sm:p-4"
       onClick={onClose}
     >
-      <div
-        className={`animate-pop w-full max-w-md rounded-2xl border bg-gradient-to-br ${style} p-6 shadow-2xl`}
-        onClick={(e) => e.stopPropagation()}
-      >
-        {isNew && (
-          <p className='mb-2 text-center text-sm font-bold uppercase tracking-widest text-amber-200'>
-            ✨ Penemuan Baru!
+      <div className="w-full max-w-sm overflow-hidden rounded-t-2xl card sm:rounded-2xl" onClick={stop}>
+        <div className={headerCls}>
+          {isNew ? (
+            <p className="mb-1 text-xs font-bold uppercase tracking-widest">{t('discovery.new')}</p>
+          ) : null}
+          <div className="animate-pop text-7xl" aria-hidden>
+            {result.emoji}
+          </div>
+          <h2 className="mt-2 text-2xl font-extrabold">{result.result}</h2>
+          {result.formula ? <p className="mt-1 font-mono text-sm opacity-90">{result.formula}</p> : null}
+          <p className="mt-2 inline-block rounded-full bg-black/20 px-3 py-0.5 text-xs font-bold uppercase tracking-wide">
+            {rarityLabel}
           </p>
-        )}
-        <div className='text-center text-6xl'>{result.emoji}</div>
-        <h2 className='mt-3 text-center text-2xl font-bold'>{result.result}</h2>
-        {result.formula && (
-          <p className='text-center font-mono text-slate-200'>{result.formula}</p>
-        )}
-        <div className='mt-2 flex items-center justify-center gap-2'>
-          <span className='rounded-full bg-black/30 px-3 py-1 text-xs uppercase tracking-wide'>
-            {RARITY_LABEL[result.rarity] ?? result.rarity}
-          </span>
-          {isNew && xpGain ? (
-            <span className='rounded-full bg-amber-400/90 px-3 py-1 text-xs font-bold text-slate-900'>
-              +{xpGain} XP
-            </span>
+          {typeof xpGain === 'number' && xpGain > 0 ? (
+            <p className="mt-2 text-sm font-bold">+{xpGain} XP</p>
           ) : null}
         </div>
-        <p className='mt-4 text-sm text-slate-100'>{result.explanation}</p>
-        {result.fun_fact && (
-          <p className='mt-3 rounded-lg bg-black/25 p-3 text-sm italic text-slate-200'>
-            💡 {result.fun_fact}
-          </p>
-        )}
-        <button
-          onClick={onClose}
-          className='mt-5 w-full rounded-lg bg-white/90 py-2 font-semibold text-slate-900 transition hover:bg-white'
-        >
-          Lanjut bereksperimen
-        </button>
+        <div className="space-y-3 p-5 text-sm">
+          <p>{result.explanation}</p>
+          {result.fun_fact ? (
+            <p className="rounded-lg card-2 p-3 text-muted">💡 {result.fun_fact}</p>
+          ) : null}
+          <div className="flex gap-2 pt-1">
+            <button
+              onClick={onShare}
+              className="flex-1 rounded-xl card-2 py-2.5 font-semibold hover:opacity-80"
+            >
+              📤 {t('discovery.share')}
+            </button>
+            <button
+              onClick={onClose}
+              className="flex-1 rounded-xl bg-sky-600 py-2.5 font-semibold text-white hover:bg-sky-500"
+            >
+              {t('discovery.continue')}
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   )

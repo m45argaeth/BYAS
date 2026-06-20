@@ -1,50 +1,66 @@
 'use client'
 
 import { useState } from 'react'
+import { useI18n } from '@/lib/i18n'
 
 export function ApiKeyModal({
   current,
-  onSave,
   onClose,
+  onSave,
 }: {
   current: string
-  onSave: (key: string) => void
   onClose: () => void
+  onSave: (key: string) => void
 }) {
-  const [value, setValue] = useState(current)
+  const { t } = useI18n()
+  const [key, setKey] = useState(current)
+
+  function stop(e: React.MouseEvent) {
+    e.stopPropagation()
+  }
+  function removeKey() {
+    onSave('')
+    onClose()
+  }
+  function saveKey() {
+    onSave(key.trim())
+    onClose()
+  }
+
   return (
     <div
-      className='fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4'
+      className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 sm:items-center sm:p-4"
       onClick={onClose}
     >
-      <div
-        className='w-full max-w-md rounded-2xl border border-slate-700 bg-slate-900 p-6'
-        onClick={(e) => e.stopPropagation()}
-      >
-        <h2 className='text-lg font-bold'>🔑 API Key Mimo kamu (opsional)</h2>
-        <p className='mt-2 text-sm text-slate-400'>
-          Punya key sendiri? Tempel di sini biar combine kamu unlimited. Kalau dikosongin, otomatis
-          pakai key sistem (ada kuota harian). Key cuma disimpan di browser kamu.
-        </p>
+      <div className="w-full max-w-sm rounded-t-2xl card p-5 sm:rounded-2xl" onClick={stop}>
+        <h2 className="text-lg font-bold">{t('apikey.title')}</h2>
+        <p className="mt-1 text-xs text-muted">{t('apikey.desc')}</p>
         <input
-          type='password'
-          value={value}
-          onChange={(e) => setValue(e.target.value)}
-          placeholder='sk-...'
-          className='mt-4 w-full rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 font-mono text-sm outline-none focus:border-sky-500'
+          value={key}
+          onChange={(e) => setKey(e.target.value)}
+          placeholder={t('apikey.placeholder')}
+          className="mt-3 w-full rounded-lg card-2 px-3 py-2 text-sm outline-none"
         />
-        <div className='mt-4 flex gap-2'>
+        <a
+          href="https://platform.xiaomimimo.com/#/console/api-keys"
+          target="_blank"
+          rel="noreferrer"
+          className="mt-2 inline-block text-xs text-sky-400 hover:underline"
+        >
+          platform.xiaomimimo.com →
+        </a>
+        <div className="mt-4 flex gap-2">
           <button
-            onClick={() => onSave(value.trim())}
-            className='flex-1 rounded-lg bg-sky-600 py-2 font-semibold hover:bg-sky-500'
+            onClick={removeKey}
+            className="flex-1 rounded-xl card-2 py-2.5 text-sm font-semibold hover:opacity-80"
           >
-            Simpan
+            {t('apikey.remove')}
           </button>
           <button
-            onClick={() => onSave('')}
-            className='rounded-lg border border-slate-600 px-4 py-2 text-sm hover:bg-slate-800'
+            onClick={saveKey}
+            className="flex-1 rounded-xl bg-sky-600 py-2.5 text-sm font-semibold text-white hover:bg-sky-500"
           >
-            Hapus
+            {t('apikey.save')}
           </button>
         </div>
       </div>

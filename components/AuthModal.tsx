@@ -2,97 +2,95 @@
 
 import { useState } from 'react'
 import { getSupabaseBrowser } from '@/lib/supabaseBrowser'
+import { useI18n } from '@/lib/i18n'
 
 export function AuthModal({ onClose }: { onClose: () => void }) {
-  const [mode, setMode] = useState<'signin' | 'signup'>('signin')
+  const { t } = useI18n()
+  const [mode, setMode] = useState<'signup' | 'signin'>('signup')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   async function submit() {
-    const sb = getSupabaseBrowser()
-    if (!sb) {
-      setError('Supabase belum dikonfigurasi (cek env).')
+    setError(null)
+    if (!email || password.length < 6) {
+      setError(t('auth.minErr'))
       return
     }
-    if (!email || password.length < 6) {
-      setError('Isi email + password minimal 6 karakter.')
+    const sb = getSupabaseBrowser()
+    if (!sb) {
+      setError(t('auth.notConfigured'))
       return
     }
     setBusy(true)
-    setError(null)
     try {
       if (mode === 'signup') {
-        const { data, error } = await sb.auth.signUp({ email, password })
-        if (error) {
-          setError(error.message)
+        const up = await sb.auth.signUp({ email, password })
+        if (up.error && !/registered|already/i.test(up.error.message)) throw up.error
+        const inRes = await sb.auth.signInWithPassword({ email, password })
+        if (inRes.error) {
+          setError(t('auth.autoLoginFail'))
+          setBusy(false)
           return
-        }
-        // Tanpa verifikasi: kalau session belum kebentuk, langsung login.
-        if (!data.session) {
-          const { error: e2 } = await sb.auth.signInWithPassword({ email, password })
-          if (e2) {
-            setError('Gagal auto-login. Pastikan "Confirm email" dimatikan di Supabase.')
-            return
-          }
         }
       } else {
-        const { error } = await sb.auth.signInWithPassword({ email, password })
-        if (error) {
-          setError(error.message)
-          return
-        }
+        const inRes = await sb.auth.signInWithPassword({ email, password })
+        if (inRes.error) throw inRes.error
       }
       onClose()
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : String(e))
     } finally {
       setBusy(false)
     }
   }
 
+  function toggleMode() {
+    setMode(mode === 'signup' ? 'signin' : 'signup')
+    setError(null)
+  }
+
+  function stop(e: React.MouseEvent) {
+    e.stopPropagation()
+  }
+
+  const title = mode === 'signup' ? t('auth.signUpTitle') : t('auth.signInTitle')
+  const cta = busy ? t('auth.processing') : mode === 'signup' ? t('auth.signUp') : t('auth.signIn')
+  const switchLabel = mode === 'signup' ? t('auth.haveAccount') : t('auth.noAccount')
+
   return (
     <div
-      className='fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4'
+      className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 sm:items-center sm:p-4"
       onClick={onClose}
     >
-      <div
-        className='w-full max-w-sm rounded-2xl border border-slate-700 bg-slate-900 p-6'
-        onClick={(e) => e.stopPropagation()}
-      >
-        <h2 className='text-lg font-bold'>{mode === 'signup' ? 'Daftar akun' : 'Masuk'}</h2>
-        <p className='mt-1 text-sm text-slate-400'>
-          Simpan koleksi kamu biar bisa diakses lintas device.
-        </p>
+      <div className="w-full max-w-sm rounded-t-2xl card p-5 sm:rounded-2xl" onClick={stop}>
+        <h2 className="text-lg font-bold">{title}</h2>
+        <p className="mt-1 text-xs text-muted">{t('auth.subtitle')}</p>
         <input
-          type='email'
+          type="email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          placeholder='email@kamu.com'
-          className='mt-4 w-full rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-sm outline-none focus:border-sky-500'
+          placeholder={t('auth.email')}
+          className="mt-3 w-full rounded-lg card-2 px-3 py-2 text-sm outline-none"
         />
         <input
-          type='password'
+          type="password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
-          placeholder='password (min 6 karakter)'
-          className='mt-2 w-full rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-sm outline-none focus:border-sky-500'
+          placeholder={t('auth.password')}
+          className="mt-2 w-full rounded-lg card-2 px-3 py-2 text-sm outline-none"
         />
-        {error && <p className='mt-2 text-xs text-red-400'>{error}</p>}
+        {error ? <p className="mt-2 text-xs text-red-400">{error}</p> : null}
         <button
           onClick={submit}
           disabled={busy}
-          className='mt-4 w-full rounded-lg bg-sky-600 py-2 font-semibold hover:bg-sky-500 disabled:opacity-50'
+          className="mt-4 w-full rounded-xl bg-sky-600 py-2.5 text-sm font-semibold text-white hover:bg-sky-500 disabled:opacity-60"
         >
-          {busy ? 'Memproses...' : mode === 'signup' ? 'Daftar' : 'Masuk'}
+          {cta}
         </button>
-        <button
-          onClick={() => {
-            setMode(mode === 'signup' ? 'signin' : 'signup')
-            setError(null)
-          }}
-          className='mt-3 w-full text-center text-xs text-slate-400 hover:text-slate-200'
-        >
-          {mode === 'signup' ? 'Udah punya akun? Masuk' : 'Belum punya akun? Daftar'}
+        <button onClick={toggleMode} className="mt-3 w-full text-center text-xs text-muted hover:underline">
+          {switchLabel}
         </button>
       </div>
     </div>
