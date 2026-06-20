@@ -64,5 +64,9 @@ export interface Stats {
   hintTokens?: number
   labReputation?: number
   completedDailyChallenges?: string[]
+  completedWeeklyQuests?: string[]
+  claimedStreakRewards?: number[]
+  solvedMysteries?: string[]
+  mysteryHintsUsed?: string[]
   failedExperiments?: number
 }
