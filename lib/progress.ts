@@ -25,8 +25,34 @@ export function xpForDiscovery(d: { rarity: Rarity; xp?: number; difficulty?: nu
   return d.xp ?? base + difficultyBonus
 }
 
+// Bonus XP berdasarkan streak aktif, di-cap supaya tidak meledak.
+export function streakXpBonus(streak: number): number {
+  return Math.min(Math.max(0, streak), 10) * 2
+}
+
+// XP final untuk discovery baru: rarity + difficulty + streak bonus.
+// Nilai ini disimpan ke disc.xp supaya total XP tetap konsisten saat dihitung ulang.
+export function xpForNewDiscovery(d: { rarity: Rarity; difficulty?: number }, streak: number): number {
+  const base = XP_BY_RARITY[d.rarity] ?? 10
+  const difficultyBonus = Math.max(0, (d.difficulty ?? 1) - 1) * 5
+  return base + difficultyBonus + streakXpBonus(streak)
+}
+
 export function totalXpFromDiscoveries(discoveries: Discovery[]): number {
   return discoveries.reduce((sum, d) => sum + xpForDiscovery(d), 0)
+}
+
+// Total XP = XP dari discoveries + bonus XP (daily challenge, quest, dsb).
+export function totalXp(discoveries: Discovery[], stats?: { bonusXp?: number }): number {
+  return totalXpFromDiscoveries(discoveries) + (stats?.bonusXp ?? 0)
+}
+
+// Milestone koleksi yang konsisten dengan achievement & research rank.
+export const COLLECTION_MILESTONES = [10, 25, 50, 100, 250, 500, 1000]
+
+export function nextMilestone(count: number): number {
+  for (const m of COLLECTION_MILESTONES) if (count < m) return m
+  return COLLECTION_MILESTONES[COLLECTION_MILESTONES.length - 1]
 }
 
 export function labReputation(discoveries: Discovery[], stats: Stats): number {

@@ -10,7 +10,8 @@ import { AuthModal } from '@/components/AuthModal'
 import { SettingsModal } from '@/components/SettingsModal'
 import { AchievementToast } from '@/components/AchievementToast'
 import { MIMO_KEY, saveDiscovery, loadDiscoveries, loadStats, saveStats } from '@/lib/storage'
-import { labReputation, levelProgress, masteryBreakdown, MASTERY_LABEL, recordPlay, researchRank, totalXpFromDiscoveries, xpForDiscovery } from '@/lib/progress'
+import { labReputation, levelProgress, masteryBreakdown, MASTERY_LABEL, nextMilestone, recordPlay, researchRank, totalXp, xpForNewDiscovery } from '@/lib/progress'
+import { getDailyChallenge, dailyProgress, isDailyClaimed, isDailyComplete } from '@/lib/daily'
 import { useAuth } from '@/lib/useAuth'
 import { syncDiscoveries, syncStats } from '@/lib/sync'
 import { pushCloudDiscovery, pushStats, pushTotalXp } from '@/lib/cloud'
@@ -19,10 +20,9 @@ import { useI18n } from '@/lib/i18n'
 import { useTheme } from '@/lib/theme'
 import { initSound, playPop, playError, playSuccess, playUnlock, playCombineCast, playReactionBurst } from '@/lib/sound'
 import { ACHIEVEMENTS, computeUnlocked, loadSeen, saveSeen } from '@/lib/achievements'
-import { RARITY_GLOW, RARITY_LABEL, RARITY_TEXT } from '@/lib/rarity'
+import { RARITY_GLOW, RARITY_LABEL } from '@/lib/rarity'
 
-const DEFAULT_STATS: Stats = { currentStreak: 0, bestStreak: 0, lastPlayed: null, displayName: null, hintTokens: 0, failedExperiments: 0 }
-const MAX_COLLECTION = 180
+const DEFAULT_STATS: Stats = { currentStreak: 0, bestStreak: 0, lastPlayed: null, displayName: null, hintTokens: 0, coins: 0, bonusXp: 0, failedExperiments: 0 }
 
 type ReactorState = 'idle' | 'ready' | 'reacting' | 'success' | 'failed'
 type AchToast = { emoji: string; title: string; label: string }
@@ -54,10 +54,11 @@ function ParticleBurst({ particles }: { particles: Particle[] }) {
 }
 
 function LabStatus({ discoveries, stats }: { discoveries: Discovery[]; stats: Stats }) {
-  const xp = totalXpFromDiscoveries(discoveries)
+  const xp = totalXp(discoveries, stats)
   const progress = levelProgress(xp)
   const rank = researchRank(progress.level, discoveries.length)
   const rep = labReputation(discoveries, stats)
+  const goal = nextMilestone(discoveries.length)
   return (
     <section className="lab-status" aria-label="Lab status">
       <div>
@@ -66,8 +67,9 @@ function LabStatus({ discoveries, stats }: { discoveries: Discovery[]; stats: St
         <p className="text-sm text-slate-400">{rank} · Level {progress.level}</p>
       </div>
       <div className="lab-status-grid">
-        <div className="lab-metric"><span>{discoveries.length}/{MAX_COLLECTION}</span><small>Discovery Index</small></div>
+        <div className="lab-metric"><span>{discoveries.length}/{goal}</span><small>Discovery Index</small></div>
         <div className="lab-metric"><span>{stats.currentStreak || 0}d</span><small>Active Streak</small></div>
+        <div className="lab-metric"><span>{stats.coins ?? 0}</span><small>Lab Coins</small></div>
         <div className="lab-metric"><span>{rep}</span><small>Lab Reputation</small></div>
       </div>
       <div className="lab-level">
@@ -146,17 +148,30 @@ function ReactionChamber({ selected, state, onRun, onClear }: { selected: Elemen
   )
 }
 
-function DailyResearchPanel({ discoveries }: { discoveries: Discovery[] }) {
-  const oxygenCount = discoveries.filter((d) => `${d.formula ?? ''} ${d.result}`.toLowerCase().includes('o')).length
-  const progress = Math.min(3, oxygenCount)
+function DailyResearchPanel({ discoveries, stats, onClaim }: { discoveries: Discovery[]; stats: Stats; onClaim: () => void }) {
+  const ch = getDailyChallenge()
+  const prog = dailyProgress(ch, discoveries)
+  const done = prog >= ch.target
+  const claimed = isDailyClaimed(ch, stats)
   return (
     <aside className="lab-panel">
       <div className="flex items-center justify-between gap-3">
-        <div><p className="lab-eyebrow">Daily Research</p><h3>Find 3 Oxygen compounds</h3></div>
-        <span className="rounded-full border border-cyan-300/20 bg-cyan-300/10 px-3 py-1 text-xs font-black text-cyan-100">{progress}/3</span>
+        <div><p className="lab-eyebrow">Daily Research</p><h3>{ch.title}</h3></div>
+        <span className="rounded-full border border-cyan-300/20 bg-cyan-300/10 px-3 py-1 text-xs font-black text-cyan-100">{prog}/{ch.target}</span>
       </div>
-      <div className="lab-progress mt-4"><div style={{ width: `${(progress / 3) * 100}%` }} /></div>
-      <p className="mt-3 text-sm text-slate-400">Reward: +80 XP · 1 Hint. Petunjuk hari ini: cari senyawa yang dekat dengan air, udara, atau oksidasi.</p>
+      <div className="lab-progress mt-4"><div style={{ width: `${(prog / ch.target) * 100}%` }} /></div>
+      <p className="mt-3 text-sm text-slate-400">{ch.description}</p>
+      <div className="mt-3 flex items-center justify-between gap-2">
+        <span className="text-xs text-slate-400">Reward: +{ch.rewardXp} XP · +{ch.rewardCoins} 🪙 · +{ch.rewardHints} 💡</span>
+        <button
+          type="button"
+          onClick={onClaim}
+          disabled={!done || claimed}
+          className="lab-button text-xs disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          {claimed ? 'Claimed ✓' : done ? 'Claim' : 'Locked'}
+        </button>
+      </div>
     </aside>
   )
 }
@@ -236,7 +251,7 @@ export default function Home() {
 
   const inventory: Element[] = useMemo(() => {
     const map = new Map<string, Element>()
-    for (const s of buildStarters(lang)) map.set(s.id, { ...s, rarity: 'common', category: 'gases' })
+    for (const s of buildStarters(lang)) map.set(s.id, s)
     for (const d of discoveries) {
       if (!map.has(d.result)) map.set(d.result, { id: d.result, name: d.result, emoji: d.emoji, formula: d.formula ?? undefined, rarity: d.rarity, category: d.category })
     }
@@ -272,8 +287,25 @@ export default function Home() {
     try { if (k) localStorage.setItem(MIMO_KEY, k); else localStorage.removeItem(MIMO_KEY) } catch {}
   }
 
+  function claimDaily() {
+    const ch = getDailyChallenge()
+    if (isDailyClaimed(ch, stats) || !isDailyComplete(ch, discoveries)) return
+    const ns: Stats = {
+      ...stats,
+      completedDailyChallenges: [...(stats.completedDailyChallenges ?? []), ch.id],
+      bonusXp: (stats.bonusXp ?? 0) + ch.rewardXp,
+      coins: (stats.coins ?? 0) + ch.rewardCoins,
+      hintTokens: (stats.hintTokens ?? 0) + ch.rewardHints,
+    }
+    setStats(ns)
+    saveStats(ns)
+    playUnlock()
+    showToast(`Daily claimed! +${ch.rewardXp} XP · +${ch.rewardCoins} coins · +${ch.rewardHints} hint`)
+    if (user) pushStats(user.id, ns, totalXp(discoveries, ns)).catch(() => {})
+  }
+
   function checkAchievements(ds: Discovery[], st: Stats) {
-    const level = levelProgress(totalXpFromDiscoveries(ds)).level
+    const level = levelProgress(totalXp(ds, st)).level
     const unlocked = computeUnlocked(ds, st, level)
     const seen = loadSeen()
     const fresh = Array.from(unlocked).filter((id) => !seen.has(id))
@@ -305,21 +337,21 @@ export default function Home() {
       setReactorState('success')
       spawnParticles(true, result.rarity)
       playReactionBurst()
-      const disc: Discovery = { ...result, discoveredAt: Date.now() }
+      const ns = recordPlay(stats)
+      const xpGain = xpForNewDiscovery(result, ns.currentStreak || 0)
+      const disc: Discovery = { ...result, discoveredAt: Date.now(), xp: xpGain }
       const isNew = saveDiscovery(disc)
       let nextList = discoveries
       if (isNew) {
         nextList = [...discoveries, disc]
         setDiscoveries(nextList)
         playSuccess()
-        if (user) { pushCloudDiscovery(user.id, disc).catch(() => {}); pushTotalXp(user.id, totalXpFromDiscoveries(nextList)).catch(() => {}) }
+        if (user) { pushCloudDiscovery(user.id, disc).catch(() => {}); pushTotalXp(user.id, totalXp(nextList, ns)).catch(() => {}) }
       } else playPop()
-      const ns = recordPlay(stats)
       setStats(ns)
       saveStats(ns)
-      if (user) pushStats(user.id, ns, totalXpFromDiscoveries(nextList)).catch(() => {})
-      const xpGain = isNew ? xpForDiscovery(result) : 0
-      setDiscovery({ result, isNew, xpGain })
+      if (user) pushStats(user.id, ns, totalXp(nextList, ns)).catch(() => {})
+      setDiscovery({ result, isNew, xpGain: isNew ? xpGain : 0 })
       checkAchievements(nextList, ns)
       setSelected([])
     } catch {
@@ -360,7 +392,7 @@ export default function Home() {
         </div>
 
         <div className="lab-side-stage">
-          <DailyResearchPanel discoveries={discoveries} />
+          <DailyResearchPanel discoveries={discoveries} stats={stats} onClaim={claimDaily} />
           <ResearchLog discoveries={discoveries} />
           <MasteryPanel discoveries={discoveries} />
         </div>
