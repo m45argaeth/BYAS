@@ -4,16 +4,27 @@ import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import type { Discovery } from '@/lib/types'
 import { loadDiscoveries } from '@/lib/storage'
+import { syncDiscoveries } from '@/lib/sync'
+import { useAuth } from '@/lib/useAuth'
 import { RARITY_ORDER, RARITY_LABEL, RARITY_TEXT } from '@/lib/rarity'
 import { DiscoveryModal } from '@/components/DiscoveryModal'
 
 export default function PokedexPage() {
+  const { user } = useAuth()
   const [discoveries, setDiscoveries] = useState<Discovery[]>([])
   const [selected, setSelected] = useState<Discovery | null>(null)
 
   useEffect(() => {
     setDiscoveries(loadDiscoveries())
-  }, [])
+    if (!user) return
+    let cancelled = false
+    syncDiscoveries(user.id).then((merged) => {
+      if (!cancelled) setDiscoveries(merged)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [user])
 
   const grouped = useMemo(() => {
     const map: Record<string, Discovery[]> = {}

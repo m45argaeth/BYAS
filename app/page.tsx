@@ -3,12 +3,18 @@
 import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { STARTER_ELEMENTS } from '@/lib/elements'
-import type { CombineResult, Element } from '@/lib/types'
+import type { CombineResult, Discovery, Element } from '@/lib/types'
 import { DiscoveryModal } from '@/components/DiscoveryModal'
 import { ApiKeyModal } from '@/components/ApiKeyModal'
+import { AuthModal } from '@/components/AuthModal'
 import { INV_KEY, MIMO_KEY, saveDiscovery } from '@/lib/storage'
+import { useAuth } from '@/lib/useAuth'
+import { syncDiscoveries } from '@/lib/sync'
+import { pushCloudDiscovery } from '@/lib/cloud'
+import { getSupabaseBrowser } from '@/lib/supabaseBrowser'
 
 export default function Home() {
+  const { user } = useAuth()
   const [inventory, setInventory] = useState<Element[]>(STARTER_ELEMENTS)
   const [selected, setSelected] = useState<string[]>([])
   const [loading, setLoading] = useState(false)
@@ -16,6 +22,7 @@ export default function Home() {
   const [toast, setToast] = useState<string | null>(null)
   const [apiKey, setApiKey] = useState('')
   const [showKeyModal, setShowKeyModal] = useState(false)
+  const [showAuth, setShowAuth] = useState(false)
 
   useEffect(() => {
     try {
@@ -31,6 +38,25 @@ export default function Home() {
       localStorage.setItem(INV_KEY, JSON.stringify(inventory))
     } catch {}
   }, [inventory])
+
+  // Saat login: sync koleksi cloud <-> lokal, lalu tambahkan hasil ke inventory.
+  useEffect(() => {
+    if (!user) return
+    let cancelled = false
+    syncDiscoveries(user.id).then((merged) => {
+      if (cancelled) return
+      setInventory((prev) => {
+        const names = new Set(prev.map((e) => e.name))
+        const additions = merged
+          .filter((d) => !names.has(d.result))
+          .map((d) => ({ name: d.result, emoji: d.emoji, formula: d.formula ?? undefined }))
+        return additions.length ? [...prev, ...additions] : prev
+      })
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [user])
 
   const selectedElements = useMemo(
     () =>
@@ -51,6 +77,11 @@ export default function Home() {
   function showToast(msg: string) {
     setToast(msg)
     setTimeout(() => setToast(null), 2500)
+  }
+
+  async function signOut() {
+    const sb = getSupabaseBrowser()
+    await sb?.auth.signOut()
   }
 
   async function combine() {
@@ -81,13 +112,17 @@ export default function Home() {
         setSelected([])
         return
       }
-      // Simpan ke koleksi/Pokedex (dedup di dalam). isNew = belum pernah ketemu.
-      const isNew = saveDiscovery({ ...result, discoveredAt: Date.now() })
-      if (isNew && !inventory.some((e) => e.name === result.result)) {
-        setInventory((prev) => [
-          ...prev,
-          { name: result.result, emoji: result.emoji, formula: result.formula ?? undefined },
-        ])
+      const disc: Discovery = { ...result, discoveredAt: Date.now() }
+      // Simpan ke koleksi lokal (dedup). isNew = belum pernah ketemu.
+      const isNew = saveDiscovery(disc)
+      if (isNew) {
+        if (user) pushCloudDiscovery(user.id, disc).catch(() => {})
+        if (!inventory.some((e) => e.name === result.result)) {
+          setInventory((prev) => [
+            ...prev,
+            { name: result.result, emoji: result.emoji, formula: result.formula ?? undefined },
+          ])
+        }
       }
       setDiscovery({ result, isNew })
       setSelected([])
@@ -127,6 +162,22 @@ export default function Home() {
           >
             🔑 {apiKey ? 'BYOK aktif' : 'Key sistem'}
           </button>
+          {user ? (
+            <button
+              onClick={signOut}
+              title={user.email ?? undefined}
+              className='rounded-full bg-slate-800 px-3 py-1 text-xs hover:bg-slate-700'
+            >
+              👤 Keluar
+            </button>
+          ) : (
+            <button
+              onClick={() => setShowAuth(true)}
+              className='rounded-full bg-emerald-700 px-3 py-1 text-xs font-medium hover:bg-emerald-600'
+            >
+              Masuk
+            </button>
+          )}
         </div>
       </header>
 
@@ -191,6 +242,7 @@ export default function Home() {
           }}
         />
       )}
+      {showAuth && <AuthModal onClose={() => setShowAuth(false)} />}
       {toast && (
         <div className='fixed bottom-6 left-1/2 z-50 -translate-x-1/2 rounded-lg bg-slate-800 px-4 py-2 text-sm shadow-lg'>
           {toast}

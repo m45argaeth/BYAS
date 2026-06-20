@@ -28,3 +28,11 @@ export function saveDiscovery(d: Discovery): boolean {
     return false
   }
 }
+
+// Timpa seluruh koleksi lokal (dipakai setelah sync dengan cloud).
+export function saveAllDiscoveries(ds: Discovery[]): void {
+  if (typeof window === 'undefined') return
+  try {
+    localStorage.setItem(DISCOVERIES_KEY, JSON.stringify(ds))
+  } catch {}
+}
