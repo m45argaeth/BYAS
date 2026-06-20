@@ -5,14 +5,16 @@ import { usePathname } from 'next/navigation'
 
 const ITEMS = [
   { href: '/', icon: '🧪', label: 'Lab' },
-  { href: '/pokedex', icon: '📒', label: 'Archive' },
+  { href: '/quest', icon: '🎯', label: 'Quest' },
+  { href: '/progress', icon: '📊', label: 'Progress' },
   { href: '/leaderboard', icon: '🏆', label: 'Ranks' },
+  { href: '/account', icon: '👤', label: 'Account' },
 ]
 
 export function BottomNav() {
   const pathname = usePathname()
   return (
-    <nav className="tabbar" aria-label="Primary navigation">
+    <nav className="tabbar" aria-label="Primary">
       {ITEMS.map((item) => {
         const active = item.href === '/' ? pathname === '/' : pathname.startsWith(item.href)
         return (
