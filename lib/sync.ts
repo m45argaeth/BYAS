@@ -1,5 +1,6 @@
 import type { Discovery, Stats } from './types'
 import { loadDiscoveries, saveAllDiscoveries, loadStats, saveStats } from './storage'
+import { totalXpFromDiscoveries } from './progress'
 import {
   pullCloudDiscoveries,
   pushManyCloudDiscoveries,
@@ -31,11 +32,16 @@ export async function syncDiscoveries(userId: string): Promise<Discovery[]> {
 function mergeStats(a: Stats, b: Stats | null): Stats {
   if (!b) return a
   const bestStreak = Math.max(a.bestStreak, b.bestStreak)
-  // Ambil streak dari sumber dengan lastPlayed paling baru.
+  // Streak dari sumber dengan lastPlayed paling baru.
   let base = a
   if (!a.lastPlayed) base = b
   else if (b.lastPlayed && b.lastPlayed > a.lastPlayed) base = b
-  return { currentStreak: base.currentStreak, bestStreak, lastPlayed: base.lastPlayed }
+  return {
+    currentStreak: base.currentStreak,
+    bestStreak,
+    lastPlayed: base.lastPlayed,
+    displayName: a.displayName ?? b.displayName ?? null,
+  }
 }
 
 export async function syncStats(userId: string): Promise<Stats> {
@@ -43,6 +49,6 @@ export async function syncStats(userId: string): Promise<Stats> {
   const cloud = await pullStats(userId)
   const merged = mergeStats(local, cloud)
   saveStats(merged)
-  await pushStats(userId, merged)
+  await pushStats(userId, merged, totalXpFromDiscoveries(loadDiscoveries()))
   return merged
 }

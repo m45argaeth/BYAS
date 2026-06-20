@@ -55,7 +55,7 @@ export async function pullStats(userId: string): Promise<Stats | null> {
   if (!sb) return null
   const { data, error } = await sb
     .from('player_stats')
-    .select('current_streak, best_streak, last_played')
+    .select('current_streak, best_streak, last_played, display_name')
     .eq('user_id', userId)
     .maybeSingle()
   if (error || !data) return null
@@ -63,10 +63,13 @@ export async function pullStats(userId: string): Promise<Stats | null> {
     currentStreak: data.current_streak ?? 0,
     bestStreak: data.best_streak ?? 0,
     lastPlayed: data.last_played ?? null,
+    displayName: data.display_name ?? null,
   }
 }
 
-export async function pushStats(userId: string, s: Stats): Promise<void> {
+// Push streak + total XP. Sengaja TIDAK menyentuh display_name biar tidak
+// menimpa username yang mungkin di-set dari device lain.
+export async function pushStats(userId: string, s: Stats, totalXp: number): Promise<void> {
   const sb = getSupabaseBrowser()
   if (!sb) return
   await sb.from('player_stats').upsert(
@@ -75,8 +78,54 @@ export async function pushStats(userId: string, s: Stats): Promise<void> {
       current_streak: s.currentStreak,
       best_streak: s.bestStreak,
       last_played: s.lastPlayed,
+      total_xp: totalXp,
       updated_at: new Date().toISOString(),
     },
     { onConflict: 'user_id' },
   )
+}
+
+// Update total XP saja (dipakai saat dapat penemuan baru tanpa ubah streak).
+export async function pushTotalXp(userId: string, totalXp: number): Promise<void> {
+  const sb = getSupabaseBrowser()
+  if (!sb) return
+  await sb.from('player_stats').upsert(
+    { user_id: userId, total_xp: totalXp, updated_at: new Date().toISOString() },
+    { onConflict: 'user_id' },
+  )
+}
+
+export async function updateDisplayName(userId: string, name: string): Promise<void> {
+  const sb = getSupabaseBrowser()
+  if (!sb) return
+  await sb.from('player_stats').upsert(
+    { user_id: userId, display_name: name, updated_at: new Date().toISOString() },
+    { onConflict: 'user_id' },
+  )
+}
+
+// ---- Leaderboard ----
+
+export interface LeaderboardEntry {
+  userId: string
+  displayName: string | null
+  totalXp: number
+  currentStreak: number
+}
+
+export async function pullLeaderboard(limit = 50): Promise<LeaderboardEntry[]> {
+  const sb = getSupabaseBrowser()
+  if (!sb) return []
+  const { data, error } = await sb
+    .from('player_stats')
+    .select('user_id, display_name, total_xp, current_streak')
+    .order('total_xp', { ascending: false })
+    .limit(limit)
+  if (error || !data) return []
+  return data.map((r: any) => ({
+    userId: r.user_id,
+    displayName: r.display_name ?? null,
+    totalXp: r.total_xp ?? 0,
+    currentStreak: r.current_streak ?? 0,
+  }))
 }

@@ -6,7 +6,12 @@ export const MIMO_KEY = 'byas_mimo_key'
 export const DISCOVERIES_KEY = 'byas_discoveries'
 export const STATS_KEY = 'byas_stats'
 
-const EMPTY_STATS: Stats = { currentStreak: 0, bestStreak: 0, lastPlayed: null }
+const EMPTY_STATS: Stats = {
+  currentStreak: 0,
+  bestStreak: 0,
+  lastPlayed: null,
+  displayName: null,
+}
 
 export function loadDiscoveries(): Discovery[] {
   if (typeof window === 'undefined') return []

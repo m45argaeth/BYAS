@@ -41,18 +41,33 @@ create policy "own_discoveries" on user_discoveries
   using (auth.uid() = user_id)
   with check (auth.uid() = user_id);
 
--- Progres pemain: streak harian (XP dihitung di client dari koleksi).
+-- Progres pemain: streak + total XP + username (buat leaderboard).
 create table if not exists player_stats (
   user_id uuid primary key references auth.users (id) on delete cascade,
   current_streak int default 0,
   best_streak int default 0,
   last_played date,
+  total_xp int default 0,
+  display_name text,
   updated_at timestamptz default now()
 );
 
+-- Untuk deployment lama: tambahkan kolom baru bila belum ada.
+alter table player_stats add column if not exists total_xp int default 0;
+alter table player_stats add column if not exists display_name text;
+
 alter table player_stats enable row level security;
+
+-- Leaderboard: semua orang boleh BACA, tapi nulis hanya row sendiri.
 drop policy if exists "own_stats" on player_stats;
-create policy "own_stats" on player_stats
-  for all
+drop policy if exists "stats_public_read" on player_stats;
+drop policy if exists "stats_insert_own" on player_stats;
+drop policy if exists "stats_update_own" on player_stats;
+create policy "stats_public_read" on player_stats for select using (true);
+create policy "stats_insert_own" on player_stats
+  for insert
+  with check (auth.uid() = user_id);
+create policy "stats_update_own" on player_stats
+  for update
   using (auth.uid() = user_id)
   with check (auth.uid() = user_id);

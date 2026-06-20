@@ -12,14 +12,19 @@ import { INV_KEY, MIMO_KEY, saveDiscovery, loadDiscoveries, loadStats, saveStats
 import { totalXpFromDiscoveries, recordPlay, XP_BY_RARITY } from '@/lib/progress'
 import { useAuth } from '@/lib/useAuth'
 import { syncDiscoveries, syncStats } from '@/lib/sync'
-import { pushCloudDiscovery, pushStats } from '@/lib/cloud'
+import { pushCloudDiscovery, pushStats, pushTotalXp } from '@/lib/cloud'
 import { getSupabaseBrowser } from '@/lib/supabaseBrowser'
 
 export default function Home() {
   const { user } = useAuth()
   const [inventory, setInventory] = useState<Element[]>(STARTER_ELEMENTS)
   const [discoveries, setDiscoveries] = useState<Discovery[]>([])
-  const [stats, setStats] = useState<Stats>({ currentStreak: 0, bestStreak: 0, lastPlayed: null })
+  const [stats, setStats] = useState<Stats>({
+    currentStreak: 0,
+    bestStreak: 0,
+    lastPlayed: null,
+    displayName: null,
+  })
   const [selected, setSelected] = useState<string[]>([])
   const [loading, setLoading] = useState(false)
   const [discovery, setDiscovery] = useState<{
@@ -106,7 +111,7 @@ export default function Home() {
       const ns = recordPlay(prev)
       if (ns !== prev) {
         saveStats(ns)
-        if (user) pushStats(user.id, ns).catch(() => {})
+        if (user) pushStats(user.id, ns, totalXpFromDiscoveries(loadDiscoveries())).catch(() => {})
       }
       return ns
     })
@@ -144,7 +149,10 @@ export default function Home() {
       const isNew = saveDiscovery(disc)
       if (isNew) {
         setDiscoveries((prev) => [...prev, disc])
-        if (user) pushCloudDiscovery(user.id, disc).catch(() => {})
+        if (user) {
+          pushCloudDiscovery(user.id, disc).catch(() => {})
+          pushTotalXp(user.id, totalXpFromDiscoveries(loadDiscoveries())).catch(() => {})
+        }
         if (!inventory.some((e) => e.name === result.result)) {
           setInventory((prev) => [
             ...prev,
@@ -179,18 +187,24 @@ export default function Home() {
           <h1 className='text-2xl font-extrabold tracking-tight'>⚗️ BYAS</h1>
           <p className='text-xs text-slate-400'>Bring Your Alchemy Skill</p>
         </div>
-        <div className='flex items-center gap-2'>
+        <div className='flex flex-wrap items-center justify-end gap-2'>
           <Link
             href='/pokedex'
             className='rounded-full bg-slate-800 px-3 py-1 text-xs hover:bg-slate-700'
           >
             📒 Koleksi
           </Link>
+          <Link
+            href='/leaderboard'
+            className='rounded-full bg-slate-800 px-3 py-1 text-xs hover:bg-slate-700'
+          >
+            🏆 Rank
+          </Link>
           <button
             onClick={() => setShowKeyModal(true)}
             className='rounded-full bg-slate-800 px-3 py-1 text-xs hover:bg-slate-700'
           >
-            🔑 {apiKey ? 'BYOK aktif' : 'Key sistem'}
+            🔑 {apiKey ? 'BYOK' : 'Key sistem'}
           </button>
           {user ? (
             <button
