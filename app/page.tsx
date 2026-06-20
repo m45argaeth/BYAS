@@ -1,13 +1,12 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
+import Link from 'next/link'
 import { STARTER_ELEMENTS } from '@/lib/elements'
 import type { CombineResult, Element } from '@/lib/types'
 import { DiscoveryModal } from '@/components/DiscoveryModal'
 import { ApiKeyModal } from '@/components/ApiKeyModal'
-
-const INV_KEY = 'byas_inventory'
-const MIMO_KEY = 'byas_mimo_key'
+import { INV_KEY, MIMO_KEY, saveDiscovery } from '@/lib/storage'
 
 export default function Home() {
   const [inventory, setInventory] = useState<Element[]>(STARTER_ELEMENTS)
@@ -82,8 +81,9 @@ export default function Home() {
         setSelected([])
         return
       }
-      const isNew = !inventory.some((e) => e.name === result.result)
-      if (isNew) {
+      // Simpan ke koleksi/Pokedex (dedup di dalam). isNew = belum pernah ketemu.
+      const isNew = saveDiscovery({ ...result, discoveredAt: Date.now() })
+      if (isNew && !inventory.some((e) => e.name === result.result)) {
         setInventory((prev) => [
           ...prev,
           { name: result.result, emoji: result.emoji, formula: result.formula ?? undefined },
@@ -112,6 +112,12 @@ export default function Home() {
           <p className='text-xs text-slate-400'>Bring Your Alchemy Skill</p>
         </div>
         <div className='flex items-center gap-2'>
+          <Link
+            href='/pokedex'
+            className='rounded-full bg-slate-800 px-3 py-1 text-xs hover:bg-slate-700'
+          >
+            📒 Koleksi
+          </Link>
           <span className='rounded-full bg-slate-800 px-3 py-1 text-xs'>
             {inventory.length} elemen
           </span>

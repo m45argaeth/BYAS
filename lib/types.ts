@@ -15,3 +15,8 @@ export interface Element {
   emoji: string
   formula?: string
 }
+
+// Satu penemuan unik yang disimpan di koleksi/Pokedex.
+export interface Discovery extends CombineResult {
+  discoveredAt: number
+}

@@ -1,13 +1,7 @@
 'use client'
 
 import type { CombineResult } from '@/lib/types'
-
-const RARITY_STYLES: Record<string, string> = {
-  common: 'from-slate-600 to-slate-700 border-slate-400',
-  uncommon: 'from-emerald-600 to-emerald-800 border-emerald-400',
-  rare: 'from-sky-600 to-indigo-800 border-sky-400',
-  legendary: 'from-amber-500 to-pink-700 border-amber-300',
-}
+import { RARITY_GRADIENT, RARITY_LABEL } from '@/lib/rarity'
 
 export function DiscoveryModal({
   result,
@@ -18,7 +12,7 @@ export function DiscoveryModal({
   isNew: boolean
   onClose: () => void
 }) {
-  const style = RARITY_STYLES[result.rarity] ?? RARITY_STYLES.common
+  const style = RARITY_GRADIENT[result.rarity] ?? RARITY_GRADIENT.common
   return (
     <div
       className='fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4'
@@ -39,7 +33,7 @@ export function DiscoveryModal({
           <p className='text-center font-mono text-slate-200'>{result.formula}</p>
         )}
         <span className='mx-auto mt-2 block w-fit rounded-full bg-black/30 px-3 py-1 text-xs uppercase tracking-wide'>
-          {result.rarity}
+          {RARITY_LABEL[result.rarity] ?? result.rarity}
         </span>
         <p className='mt-4 text-sm text-slate-100'>{result.explanation}</p>
         {result.fun_fact && (
