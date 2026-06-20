@@ -34,31 +34,27 @@ interface Particle {
   delay: number
 }
 
-/* ═══════════════════════════════════════════════════
-   Element Card — Periodic Table Style
-   ═══════════════════════════════════════════════════ */
-
+/* ── ElementCard ── */
 function ElementCard({ el, selected, onClick }: { el: Element; selected: boolean; onClick: () => void }) {
   const group: ElementGroup = el.group ?? 'unknown'
-  const colors = GROUP_COLORS[group]
+  const c = GROUP_COLORS[group]
   const hasAtomic = typeof el.atomicNumber === 'number'
   const symbol = el.id.length <= 3 ? el.id : ''
-
   return (
     <button
       onClick={onClick}
       className={`pt-card animate-fade-in ${selected ? 'selected' : ''}`}
       style={{
-        borderColor: selected ? colors.glow : colors.border,
+        borderColor: selected ? c.glow : c.border,
         boxShadow: selected
-          ? `0 0 14px ${colors.ring}, 0 0 36px ${colors.ring.replace('0.45', '0.15')}, inset 0 0 14px ${colors.ring.replace('0.45', '0.06')}`
+          ? `0 0 14px ${c.ring}, 0 0 36px ${c.ring.replace('0.45', '0.15')}, inset 0 0 14px ${c.ring.replace('0.45', '0.06')}`
           : 'none',
-        ['--pt-glow' as string]: colors.ring.replace('0.45', '0.08'),
+        ['--pt-glow' as string]: c.ring.replace('0.45', '0.08'),
       }}
     >
-      {hasAtomic && <span className="pt-atomic" style= color: colors.text >{el.atomicNumber}</span>}
+      {hasAtomic && <span className="pt-atomic" style= color: c.text >{el.atomicNumber}</span>}
       {symbol ? (
-        <span className="pt-symbol text-xl sm:text-2xl" style= color: colors.text >{symbol}</span>
+        <span className="pt-symbol text-xl sm:text-2xl" style= color: c.text >{symbol}</span>
       ) : (
         <span className="relative z-10 text-2xl sm:text-3xl">{el.emoji}</span>
       )}
@@ -70,10 +66,7 @@ function ElementCard({ el, selected, onClick }: { el: Element; selected: boolean
   )
 }
 
-/* ═══════════════════════════════════════════════════
-   Combine Slot
-   ═══════════════════════════════════════════════════ */
-
+/* ── CombineSlot ── */
 function CombineSlot({ el, pick }: { el?: Element; pick: string }) {
   const key = el?.id ?? 'empty'
   if (!el) {
@@ -84,23 +77,22 @@ function CombineSlot({ el, pick }: { el?: Element; pick: string }) {
     )
   }
   const group: ElementGroup = el.group ?? 'unknown'
-  const colors = GROUP_COLORS[group]
+  const c = GROUP_COLORS[group]
   const symbol = el.id.length <= 3 ? el.id : ''
   const hasAtomic = typeof el.atomicNumber === 'number'
-
   return (
     <div
       key={key}
       className="slot-ring filled flex h-28 sm:h-32 flex-col items-center justify-center gap-1 rounded-2xl"
       style={{
-        border: `2px solid ${colors.glow}`,
-        boxShadow: `0 0 18px ${colors.ring}, inset 0 0 20px ${colors.ring.replace('0.45', '0.08')}`,
-        background: `radial-gradient(circle at 50% 30%, ${colors.ring.replace('0.45', '0.12')}, transparent 70%)`,
+        border: `2px solid ${c.glow}`,
+        boxShadow: `0 0 18px ${c.ring}, inset 0 0 20px ${c.ring.replace('0.45', '0.08')}`,
+        background: `radial-gradient(circle at 50% 30%, ${c.ring.replace('0.45', '0.12')}, transparent 70%)`,
       }}
     >
-      {hasAtomic && <span className="absolute top-2 left-3 text-[10px] font-bold" style= color: colors.text >{el.atomicNumber}</span>}
+      {hasAtomic && <span className="absolute top-2 left-3 text-[10px] font-bold" style= color: c.text >{el.atomicNumber}</span>}
       {symbol ? (
-        <span className="animate-floaty text-3xl sm:text-4xl font-extrabold" style= color: colors.text >{symbol}</span>
+        <span className="animate-floaty text-3xl sm:text-4xl font-extrabold" style= color: c.text >{symbol}</span>
       ) : (
         <span className="animate-floaty text-3xl sm:text-4xl">{el.emoji}</span>
       )}
@@ -110,10 +102,7 @@ function CombineSlot({ el, pick }: { el?: Element; pick: string }) {
   )
 }
 
-/* ═══════════════════════════════════════════════════
-   Particle Burst
-   ═══════════════════════════════════════════════════ */
-
+/* ── ParticleBurst ── */
 function ParticleBurst({ particles }: { particles: Particle[] }) {
   if (!particles.length) return null
   return (
@@ -140,10 +129,7 @@ function ParticleBurst({ particles }: { particles: Particle[] }) {
   )
 }
 
-/* ═══════════════════════════════════════════════════
-   Main Page
-   ═══════════════════════════════════════════════════ */
-
+/* ── Home ── */
 export default function Home() {
   const { user } = useAuth()
   const { t, lang } = useI18n()
@@ -160,13 +146,10 @@ export default function Home() {
   const [showKey, setShowKey] = useState(false)
   const [showAuth, setShowAuth] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
-
-  // Reaction effects
   const [reactionState, setReactionState] = useState<'idle' | 'success' | 'fail'>('idle')
   const [particles, setParticles] = useState<Particle[]>([])
   const [flashColor, setFlashColor] = useState<string>('')
 
-  // Data load
   useEffect(() => {
     setDiscoveries(loadDiscoveries())
     setStats(loadStats())
@@ -200,7 +183,6 @@ export default function Home() {
     [selected, inventory],
   )
 
-  // Particles
   const spawnParticles = useCallback((success: boolean) => {
     const palette = success
       ? ['#38bdf8','#818cf8','#a78bfa','#f472b6','#fbbf24','#34d399','#fb923c','#e879f9']
@@ -286,7 +268,6 @@ export default function Home() {
       if (!res.ok || data.error) { playError(); triggerFail(); showToast(t('err.' + (data?.error ?? 'combine'))); return }
       const result = data as CombineResult
       if (!result.reacted) { playError(); triggerFail(); showToast(t('combine.noReaction', { a: a.name, b: b.name })); setSelected([]); return }
-
       triggerSuccess()
       const disc: Discovery = { ...result, discoveredAt: Date.now() }
       const isNew = saveDiscovery(disc)
@@ -311,13 +292,8 @@ export default function Home() {
 
   return (
     <main className="mx-auto flex min-h-screen max-w-2xl flex-col px-3 py-4 sm:px-4 sm:py-6">
-      {/* Flash overlay */}
       {flashColor && <div className="reaction-overlay" style= background: flashColor  />}
-
-      {/* Particle burst */}
       <ParticleBurst particles={particles} />
-
-      {/* Header */}
       <header className="flex items-center justify-between gap-2">
         <div className="min-w-0">
           <h1 className="flex items-center gap-2 text-xl font-extrabold tracking-tight sm:text-2xl">
@@ -339,37 +315,24 @@ export default function Home() {
           )}
         </div>
       </header>
-
-      {/* Stats */}
       <StatsBar totalXp={totalXp} streak={stats.currentStreak} bestStreak={stats.bestStreak} />
-
-      {/* Combine Area */}
       <section className={`mt-4 grid grid-cols-[1fr_auto_1fr] items-center gap-2 rounded-2xl card p-4 transition-all duration-300 sm:gap-4 sm:p-5 ${reactionState === 'fail' ? 'shake-it' : ''}`}
         style={reactionState === 'success' ? { boxShadow: '0 0 30px rgba(56,189,248,0.35), 0 0 70px rgba(56,189,248,0.12)' } : undefined}>
         <CombineSlot el={selEls[0]} pick={t('slot.pick')} />
         <div className="text-center"><span className="text-xl font-bold text-muted sm:text-2xl">+</span></div>
         <CombineSlot el={selEls[1]} pick={t('slot.pick')} />
       </section>
-
-      {/* Combine Button */}
       <button onClick={combine} disabled={!canCombine}
-        className={`mt-4 w-full rounded-xl py-3.5 text-base font-bold text-white transition-all duration-300 ${canCombine ? 'animate-pulse-glow bg-gradient-to-r from-sky-500 via-indigo-500 to-purple-500 bg-shimmer shadow-lg shadow-indigo-500/25 active:scale-[0.97]' : 'cursor-not-allowed bg-slate-700/40 text-slate-400'}`}
-        style={canCombine ? { backgroundSize: '200% auto' } : undefined}>
+        className={`mt-4 w-full rounded-xl py-3.5 text-base font-bold text-white transition-all duration-300 ${canCombine ? 'animate-pulse-glow bg-gradient-to-r from-sky-500 via-indigo-500 to-purple-500 shadow-lg shadow-indigo-500/25 active:scale-[0.97]' : 'cursor-not-allowed bg-slate-700/40 text-slate-400'}`}
+        style={canCombine ? { backgroundSize: '200% auto', backgroundImage: 'linear-gradient(to right, #0ea5e9, #6366f1, #a855f7)' } : undefined}>
         {loading ? (
-          <span className="flex items-center justify-center gap-2">
-            <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
-            {t('combine.loading')}
-          </span>
+          <span className="flex items-center justify-center gap-2"><span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />{t('combine.loading')}</span>
         ) : (<span className="flex items-center justify-center gap-2"><span className="text-lg">⚗️</span> {t('combine.button')}</span>)}
       </button>
-
-      {/* Element Grid */}
       <section className="mt-5">
         <div className="mb-3 flex items-center justify-between">
           <h2 className="text-xs font-semibold uppercase tracking-wider text-muted">{t('nav.collection')} · {inventory.length}</h2>
-          {selected.length > 0 && (
-            <button onClick={() => setSelected([])} className="text-xs text-muted underline hover:text-sky-400">{selected.length} selected · clear</button>
-          )}
+          {selected.length > 0 && <button onClick={() => setSelected([])} className="text-xs text-muted underline hover:text-sky-400">{selected.length} selected · clear</button>}
         </div>
         <div className="grid grid-cols-4 gap-2 sm:grid-cols-5 md:grid-cols-6">
           {inventory.map((el, idx) => (
@@ -379,20 +342,14 @@ export default function Home() {
           ))}
         </div>
       </section>
-
-      {/* Empty state hint */}
       {inventory.length <= 6 && discoveries.length === 0 && (
         <div className="mt-3 text-center animate-fade-in"><p className="text-xs text-muted">✨ Pick two elements above and press Combine to discover new compounds!</p></div>
       )}
-
-      {/* Modals */}
       {discovery && <DiscoveryModal result={discovery.result} isNew={discovery.isNew} xpGain={discovery.xpGain} onClose={() => setDiscovery(null)} />}
       {showKey && <ApiKeyModal current={apiKey} onClose={() => setShowKey(false)} onSave={handleSaveKey} />}
       {showAuth && <AuthModal onClose={() => setShowAuth(false)} />}
       {showSettings && <SettingsModal onClose={() => setShowSettings(false)} />}
       {achToast && <AchievementToast emoji={achToast.emoji} title={achToast.title} label={achToast.label} />}
-
-      {/* Toast */}
       {msg && <div className="toast-enter fixed bottom-6 left-1/2 z-50 -translate-x-1/2 rounded-xl bg-slate-900/90 px-4 py-2.5 text-sm text-white shadow-xl backdrop-blur">{msg}</div>}
     </main>
   )
