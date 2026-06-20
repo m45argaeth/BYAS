@@ -1,4 +1,4 @@
-import type { Element, ElementGroup, Lang } from './types'
+import type { Element, ElementGroup, Lang, MasteryCategory } from './types'
 
 interface StarterDef {
   id: string
@@ -6,17 +6,18 @@ interface StarterDef {
   emoji: string
   formula: string
   group: ElementGroup
+  category: MasteryCategory
   period: number
   names: Record<Lang, string>
 }
 
 export const STARTER_DEFS: StarterDef[] = [
-  { id: 'H', atomicNumber: 1, emoji: '💧', formula: 'H', group: 'nonmetal', period: 1, names: { id: 'Hidrogen', en: 'Hydrogen', cn: '氢' } },
-  { id: 'O', atomicNumber: 8, emoji: '💨', formula: 'O', group: 'nonmetal', period: 2, names: { id: 'Oksigen', en: 'Oxygen', cn: '氧' } },
-  { id: 'C', atomicNumber: 6, emoji: '💎', formula: 'C', group: 'nonmetal', period: 2, names: { id: 'Karbon', en: 'Carbon', cn: '碳' } },
-  { id: 'N', atomicNumber: 7, emoji: '🌬️', formula: 'N', group: 'nonmetal', period: 2, names: { id: 'Nitrogen', en: 'Nitrogen', cn: '氮' } },
-  { id: 'S', atomicNumber: 16, emoji: '🟡', formula: 'S', group: 'nonmetal', period: 3, names: { id: 'Sulfur', en: 'Sulfur', cn: '硫' } },
-  { id: 'Na', atomicNumber: 11, emoji: '🧂', formula: 'Na', group: 'alkali-metal', period: 3, names: { id: 'Natrium', en: 'Sodium', cn: '钠' } },
+  { id: 'H', atomicNumber: 1, emoji: '💧', formula: 'H', group: 'nonmetal', category: 'gases', period: 1, names: { id: 'Hidrogen', en: 'Hydrogen', cn: '氢' } },
+  { id: 'O', atomicNumber: 8, emoji: '💨', formula: 'O', group: 'nonmetal', category: 'gases', period: 2, names: { id: 'Oksigen', en: 'Oxygen', cn: '氧' } },
+  { id: 'C', atomicNumber: 6, emoji: '💎', formula: 'C', group: 'nonmetal', category: 'organic', period: 2, names: { id: 'Karbon', en: 'Carbon', cn: '碳' } },
+  { id: 'N', atomicNumber: 7, emoji: '🌬️', formula: 'N', group: 'nonmetal', category: 'gases', period: 2, names: { id: 'Nitrogen', en: 'Nitrogen', cn: '氮' } },
+  { id: 'S', atomicNumber: 16, emoji: '🟡', formula: 'S', group: 'nonmetal', category: 'inorganic', period: 3, names: { id: 'Sulfur', en: 'Sulfur', cn: '硫' } },
+  { id: 'Na', atomicNumber: 11, emoji: '🧂', formula: 'Na', group: 'alkali-metal', category: 'metals', period: 3, names: { id: 'Natrium', en: 'Sodium', cn: '钠' } },
 ]
 
 export const STARTER_IDS = new Set(STARTER_DEFS.map((d) => d.id))
@@ -34,7 +35,9 @@ export function buildStarters(lang: Lang): Element[] {
     formula: d.formula,
     atomicNumber: d.atomicNumber,
     group: d.group,
+    category: d.category,
     period: d.period,
+    rarity: 'common' as const,
   }))
 }
 

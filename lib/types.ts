@@ -34,6 +34,7 @@ export interface CombineResult {
   difficulty?: number
   hint?: string
   ingredients?: string[]
+  xp?: number
 }
 
 export interface Element {
@@ -58,6 +59,8 @@ export interface Stats {
   lastPlayed: string | null
   displayName: string | null
   totalXp?: number
+  bonusXp?: number
+  coins?: number
   hintTokens?: number
   labReputation?: number
   completedDailyChallenges?: string[]
