@@ -1,72 +1,71 @@
-// Lightweight Web Audio synth SFX. No asset files needed.
-let enabled = true
-let ac: AudioContext | null = null
+'use client'
 
-export function initSound(): void {
+let enabled = true
+let ctx: AudioContext | null = null
+
+const KEY = 'byas_sound'
+
+export function initSound() {
   if (typeof window === 'undefined') return
-  enabled = localStorage.getItem('byas_sound') !== 'off'
+  try {
+    const saved = localStorage.getItem(KEY)
+    if (saved === 'off') enabled = false
+  } catch {}
 }
 
 export function isSoundOn(): boolean {
   return enabled
 }
 
-export function setSoundOn(on: boolean): void {
+export function setSoundOn(on: boolean) {
   enabled = on
-  if (typeof window !== 'undefined') {
-    localStorage.setItem('byas_sound', on ? 'on' : 'off')
-  }
+  try {
+    localStorage.setItem(KEY, on ? 'on' : 'off')
+  } catch {}
 }
 
-function ctx(): AudioContext | null {
+function getCtx(): AudioContext | null {
   if (typeof window === 'undefined') return null
   try {
-    const W = window as unknown as { AudioContext?: typeof AudioContext; webkitAudioContext?: typeof AudioContext }
-    const Ctor = W.AudioContext ?? W.webkitAudioContext
-    if (!Ctor) return null
-    if (!ac) ac = new Ctor()
-    return ac
+    if (!ctx) {
+      const AC = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext
+      ctx = new AC()
+    }
+    return ctx
   } catch {
     return null
   }
 }
 
-function tone(freq: number, dur: number, type: OscillatorType = 'sine', vol = 0.15, delay = 0): void {
-  const a = ctx()
-  if (!a) return
-  const o = a.createOscillator()
-  const g = a.createGain()
-  o.type = type
-  o.frequency.value = freq
-  o.connect(g)
-  g.connect(a.destination)
-  const t0 = a.currentTime + delay
-  g.gain.setValueAtTime(0.0001, t0)
-  g.gain.linearRampToValueAtTime(vol, t0 + 0.01)
-  g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur)
-  o.start(t0)
-  o.stop(t0 + dur)
+function tone(freq: number, durMs: number, type: OscillatorType, gain = 0.06, delayMs = 0) {
+  if (!enabled) return
+  const ac = getCtx()
+  if (!ac) return
+  const start = ac.currentTime + delayMs / 1000
+  const osc = ac.createOscillator()
+  const g = ac.createGain()
+  osc.type = type
+  osc.frequency.setValueAtTime(freq, start)
+  g.gain.setValueAtTime(gain, start)
+  g.gain.exponentialRampToValueAtTime(0.0001, start + durMs / 1000)
+  osc.connect(g)
+  g.connect(ac.destination)
+  osc.start(start)
+  osc.stop(start + durMs / 1000)
 }
 
-export function playPop(): void {
-  if (!enabled) return
-  tone(420, 0.12, 'triangle', 0.12)
+export function playPop() {
+  tone(440, 90, 'triangle')
 }
-
-export function playSuccess(): void {
-  if (!enabled) return
-  tone(523, 0.12, 'sine', 0.13)
-  tone(659, 0.14, 'sine', 0.13, 0.1)
-  tone(784, 0.18, 'sine', 0.13, 0.2)
+export function playError() {
+  tone(180, 220, 'sawtooth', 0.05)
 }
-
-export function playError(): void {
-  if (!enabled) return
-  tone(200, 0.2, 'sawtooth', 0.1)
+export function playSuccess() {
+  tone(523, 120, 'triangle')
+  tone(784, 160, 'triangle', 0.06, 110)
 }
-
-export function playUnlock(): void {
-  if (!enabled) return
-  tone(659, 0.12, 'square', 0.1)
-  tone(988, 0.22, 'square', 0.1, 0.12)
+export function playUnlock() {
+  tone(523, 120, 'triangle')
+  tone(659, 120, 'triangle', 0.06, 110)
+  tone(988, 240, 'triangle', 0.06, 230)
 }

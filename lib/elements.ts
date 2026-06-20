@@ -1,27 +1,33 @@
 import type { Element, Lang } from './types'
 
-export interface StarterDef {
+interface StarterDef {
   id: string
   emoji: string
+  formula: string
   names: Record<Lang, string>
 }
 
 export const STARTER_DEFS: StarterDef[] = [
-  { id: 'H', emoji: '🫧', names: { id: 'Hidrogen', en: 'Hydrogen', cn: '氢' } },
-  { id: 'O', emoji: '🔵', names: { id: 'Oksigen', en: 'Oxygen', cn: '氧' } },
-  { id: 'C', emoji: '⚫', names: { id: 'Karbon', en: 'Carbon', cn: '碳' } },
-  { id: 'N', emoji: '🟪', names: { id: 'Nitrogen', en: 'Nitrogen', cn: '氮' } },
-  { id: 'S', emoji: '🟡', names: { id: 'Sulfur', en: 'Sulfur', cn: '硫' } },
-  { id: 'Na', emoji: '🧂', names: { id: 'Natrium', en: 'Sodium', cn: '钠' } },
+  { id: 'H', emoji: '🫧', formula: 'H', names: { id: 'Hidrogen', en: 'Hydrogen', cn: '氢' } },
+  { id: 'O', emoji: '🔵', formula: 'O', names: { id: 'Oksigen', en: 'Oxygen', cn: '氧' } },
+  { id: 'C', emoji: '⚫', formula: 'C', names: { id: 'Karbon', en: 'Carbon', cn: '碳' } },
+  { id: 'N', emoji: '🟪', formula: 'N', names: { id: 'Nitrogen', en: 'Nitrogen', cn: '氮' } },
+  { id: 'S', emoji: '🟡', formula: 'S', names: { id: 'Sulfur', en: 'Sulfur', cn: '硫' } },
+  { id: 'Na', emoji: '🧂', formula: 'Na', names: { id: 'Natrium', en: 'Sodium', cn: '钠' } },
 ]
 
 export const STARTER_IDS = new Set(STARTER_DEFS.map((d) => d.id))
 
 export function starterName(id: string, lang: Lang): string {
-  const d = STARTER_DEFS.find((x) => x.id === id)
-  return d ? d.names[lang] : id
+  const def = STARTER_DEFS.find((d) => d.id === id)
+  return def ? def.names[lang] ?? def.names.en : id
 }
 
 export function buildStarters(lang: Lang): Element[] {
-  return STARTER_DEFS.map((d) => ({ id: d.id, name: d.names[lang], emoji: d.emoji }))
+  return STARTER_DEFS.map((d) => ({
+    id: d.id,
+    name: d.names[lang] ?? d.names.en,
+    emoji: d.emoji,
+    formula: d.formula,
+  }))
 }
