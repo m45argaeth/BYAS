@@ -31,6 +31,7 @@ function haptic(ms: number) {
 
 type ReactorState = 'idle' | 'ready' | 'reacting' | 'success' | 'failed'
 type SideTab = 'quests' | 'rewards' | 'progress'
+type MobileView = 'lab' | 'panel'
 type AchToast = { emoji: string; title: string; label: string }
 
 type Particle = { id: number; x: number; y: number; color: string; size: number; delay: number }
@@ -59,32 +60,24 @@ function ParticleBurst({ particles }: { particles: Particle[] }) {
   )
 }
 
-function LabStatus({ discoveries, stats }: { discoveries: Discovery[]; stats: Stats }) {
+function StageHead({ discoveries, stats }: { discoveries: Discovery[]; stats: Stats }) {
   const xp = totalXp(discoveries, stats)
   const progress = levelProgress(xp)
   const rank = researchRank(progress.level, discoveries.length)
-  const rep = labReputation(discoveries, stats)
-  const goal = nextMilestone(discoveries.length)
   return (
-    <section className="lab-status" aria-label="Lab status">
-      <div>
-        <p className="lab-eyebrow">BYAS Lab OS</p>
-        <h1>Bring Your Alchemy Skill</h1>
-        <p className="text-sm text-slate-400">{rank} · Level {progress.level}</p>
+    <header className="stage-head">
+      <div className="stage-head-id">
+        <span className="stage-eyebrow">BYAS \u00b7 Reaction Lab</span>
+        <strong>Lv {progress.level} \u00b7 {rank}</strong>
       </div>
-      <div className="lab-status-grid">
-        <div className="lab-metric"><span>{discoveries.length}/{goal}</span><small>Discovery Index</small></div>
-        <div className="lab-metric"><span>{stats.currentStreak || 0}d</span><small>Active Streak</small></div>
-        <div className="lab-metric"><span>{stats.coins ?? 0}</span><small>Lab Coins</small></div>
-        <div className="lab-metric"><span>{rep}</span><small>Lab Reputation</small></div>
+      <div className="stage-head-xp" aria-label={`Research XP ${progress.into} of ${progress.span}`}>
+        <div className="xp-mini"><div style={{ width: `${progress.pct}%` }} /></div>
       </div>
-      <div className="lab-level">
-        <div className="flex items-center justify-between text-[11px] font-bold uppercase tracking-[0.18em] text-slate-400">
-          <span>Research XP</span><span>{progress.into}/{progress.span}</span>
-        </div>
-        <div className="lab-progress"><div style={{ width: `${progress.pct}%` }} /></div>
+      <div className="stage-head-chips">
+        <span className="hud-chip">\ud83d\udd25 {stats.currentStreak || 0}</span>
+        <span className="hud-chip">\ud83e\ude99 {stats.coins ?? 0}</span>
       </div>
-    </section>
+    </header>
   )
 }
 
@@ -106,7 +99,7 @@ function SpecimenTile({ element, selected, onSelect, onDragStart }: { element: E
         '--specimen-border': selected ? colors.glow : 'var(--border)',
       } as CSSProperties}
     >
-      <span className="specimen-number">{element.atomicNumber ?? '∞'}</span>
+      <span className="specimen-number">{element.atomicNumber ?? '\u221e'}</span>
       <span className="specimen-symbol">{symbol}</span>
       <span className="specimen-name">{element.name}</span>
       <span className="specimen-group">{group.replaceAll('-', ' ')}</span>
@@ -123,7 +116,7 @@ function ChamberSlot({ element, label, onRemove }: { element?: Element; label: s
   const symbol = element.id.length <= 3 ? element.id : element.emoji
   return (
     <button type="button" onClick={onRemove} aria-label={`Remove ${element.name} from chamber`} className="chamber-slot filled" style={{ '--slot-glow': colors.ring } as CSSProperties}>
-      <small>{element.atomicNumber ?? '∞'}</small>
+      <small>{element.atomicNumber ?? '\u221e'}</small>
       <strong>{symbol}</strong>
       <span>{element.name}</span>
     </button>
@@ -132,7 +125,8 @@ function ChamberSlot({ element, label, onRemove }: { element?: Element; label: s
 
 function ReactionChamber({ selected, state, dragOver, onRun, onClear, onDropSpecimen, onRemoveSpecimen, onDragStateChange }: { selected: Element[]; state: ReactorState; dragOver: boolean; onRun: () => void; onClear: () => void; onDropSpecimen: (id: string) => void; onRemoveSpecimen: (index: number) => void; onDragStateChange: (v: boolean) => void }) {
   const ready = selected.length === 2 && state !== 'reacting'
-  const status = state === 'reacting' ? 'Reaction in progress' : ready ? 'Ready to run experiment' : 'Insert two specimens'
+  const step = state === 'reacting' ? 4 : selected.length === 0 ? 1 : selected.length === 1 ? 2 : 3
+  const status = state === 'reacting' ? 'Reaction in progress\u2026' : ready ? 'Ready \u2014 run the experiment' : selected.length === 1 ? 'Pick a second specimen' : 'Insert two specimens'
   return (
     <section
       className={`reaction-chamber state-${state} ${dragOver ? 'chamber-drop-active' : ''}`}
@@ -143,20 +137,20 @@ function ReactionChamber({ selected, state, dragOver, onRun, onClear, onDropSpec
       onDrop={(e) => { e.preventDefault(); const id = e.dataTransfer.getData('text/plain'); if (id) onDropSpecimen(id); onDragStateChange(false) }}
     >
       <div className="chamber-core">
+        <p className="chamber-step"><b>{step}/4</b> Pick A \u00b7 Pick B \u00b7 React \u00b7 Discover</p>
         <div className="chamber-slots">
           <ChamberSlot element={selected[0]} label="Specimen A" onRemove={() => onRemoveSpecimen(0)} />
           <div className="chamber-plus">+</div>
           <ChamberSlot element={selected[1]} label="Specimen B" onRemove={() => onRemoveSpecimen(1)} />
         </div>
-        <p className="mt-5 text-xs font-black uppercase tracking-[0.28em] text-cyan-100/60">Reaction Chamber</p>
         <h2>{status}</h2>
         <div className="mt-5 flex justify-center gap-2">
           <button type="button" onClick={onRun} disabled={!ready} className="lab-button-primary min-w-44 disabled:cursor-not-allowed disabled:opacity-40">
-            {state === 'reacting' ? 'Synthesizing…' : 'Run Experiment'}
+            {state === 'reacting' ? 'Synthesizing\u2026' : 'Run Experiment'}
           </button>
           {selected.length ? <button type="button" onClick={onClear} className="lab-button">Clear</button> : null}
         </div>
-        <p className="chamber-hint">Tarik specimen ke chamber, atau tekan <span className="kbd-hint"><kbd>Enter</kbd></span> untuk reaksi · <span className="kbd-hint"><kbd>Esc</kbd></span> reset</p>
+        <p className="chamber-hint">Tarik specimen ke chamber, atau tekan <span className="kbd-hint"><kbd>Enter</kbd></span> untuk reaksi \u00b7 <span className="kbd-hint"><kbd>Esc</kbd></span> reset</p>
       </div>
     </section>
   )
@@ -174,10 +168,10 @@ function DailyResearchPanel({ discoveries, stats, onClaim }: { discoveries: Disc
         <span className="rounded-full border border-cyan-300/20 bg-cyan-300/10 px-3 py-1 text-xs font-black text-cyan-100">{prog}/{ch.target}</span>
       </div>
       <div className="lab-progress mt-4"><div style={{ width: `${(prog / ch.target) * 100}%` }} /></div>
-      <p className="mt-3 text-sm text-slate-400">{ch.description}</p>
+      <p className="mt-3 text-sm text-muted">{ch.description}</p>
       <div className="mt-3 flex items-center justify-between gap-2">
-        <span className="text-xs text-slate-400">Reward: +{ch.rewardXp} XP · +{ch.rewardCoins} 🪙 · +{ch.rewardHints} 💡</span>
-        <button type="button" onClick={onClaim} disabled={!done || claimed} className="lab-button text-xs disabled:cursor-not-allowed disabled:opacity-40">{claimed ? 'Claimed ✓' : done ? 'Claim' : 'Locked'}</button>
+        <span className="text-xs text-muted">Reward: +{ch.rewardXp} XP \u00b7 +{ch.rewardCoins} \ud83e\ude99 \u00b7 +{ch.rewardHints} \ud83d\udca1</span>
+        <button type="button" onClick={onClaim} disabled={!done || claimed} className="lab-button text-xs disabled:cursor-not-allowed disabled:opacity-40">{claimed ? 'Claimed \u2713' : done ? 'Claim' : 'Locked'}</button>
       </div>
     </aside>
   )
@@ -193,17 +187,17 @@ function MysteryResearchPanel({ discoveries, stats, onClaim, onUseHint }: { disc
     <aside className="lab-panel">
       <div className="flex items-center justify-between gap-3">
         <div><p className="lab-eyebrow">Mystery Research</p><h3>Teka-teki Hari Ini</h3></div>
-        <span className="text-2xl">{claimed ? '🔓' : '🔒'}</span>
+        <span className="text-2xl">{claimed ? '\ud83d\udd13' : '\ud83d\udd12'}</span>
       </div>
-      <p className="mt-3 rounded-2xl border border-amber-300/14 bg-amber-300/8 p-3 text-sm italic text-amber-100/90">“{m.riddle}”</p>
+      <p className="mt-3 rounded-2xl border border-amber-300/14 bg-amber-300/8 p-3 text-sm italic text-amber-100/90">\u201c{m.riddle}\u201d</p>
       {hintUsed ? (
-        <p className="mt-2 text-xs text-slate-300">💡 {m.hint}</p>
+        <p className="mt-2 text-xs text-muted">\ud83d\udca1 {m.hint}</p>
       ) : (
-        <button type="button" onClick={onUseHint} disabled={tokens < 1 || claimed} className="lab-button mt-2 text-xs disabled:cursor-not-allowed disabled:opacity-40">Buka Hint (1 💡 · punya {tokens})</button>
+        <button type="button" onClick={onUseHint} disabled={tokens < 1 || claimed} className="lab-button mt-2 text-xs disabled:cursor-not-allowed disabled:opacity-40">Buka Hint (1 \ud83d\udca1 \u00b7 punya {tokens})</button>
       )}
       <div className="mt-3 flex items-center justify-between gap-2">
-        <span className="text-xs text-slate-400">{solved ? 'Terpecahkan!' : 'Temukan jawabannya hari ini.'} +{m.rewardXp} XP · +{m.rewardCoins} 🪙</span>
-        <button type="button" onClick={onClaim} disabled={!solved || claimed} className="lab-button text-xs disabled:cursor-not-allowed disabled:opacity-40">{claimed ? 'Claimed ✓' : solved ? 'Claim' : 'Locked'}</button>
+        <span className="text-xs text-muted">{solved ? 'Terpecahkan!' : 'Temukan jawabannya hari ini.'} +{m.rewardXp} XP \u00b7 +{m.rewardCoins} \ud83e\ude99</span>
+        <button type="button" onClick={onClaim} disabled={!solved || claimed} className="lab-button text-xs disabled:cursor-not-allowed disabled:opacity-40">{claimed ? 'Claimed \u2713' : solved ? 'Claim' : 'Locked'}</button>
       </div>
     </aside>
   )
@@ -221,10 +215,10 @@ function WeeklyQuestPanel({ discoveries, stats, onClaim }: { discoveries: Discov
         <span className="rounded-full border border-violet-300/20 bg-violet-300/10 px-3 py-1 text-xs font-black text-violet-100">{prog}/{q.target}</span>
       </div>
       <div className="lab-progress mt-4"><div style={{ width: `${(prog / q.target) * 100}%` }} /></div>
-      <p className="mt-3 text-sm text-slate-400">Temukan {q.target} penemuan baru minggu ini.</p>
+      <p className="mt-3 text-sm text-muted">Temukan {q.target} penemuan baru minggu ini.</p>
       <div className="mt-3 flex items-center justify-between gap-2">
-        <span className="text-xs text-slate-400">Reward: +{q.rewardXp} XP · +{q.rewardCoins} 🪙 · +{q.rewardHints} 💡</span>
-        <button type="button" onClick={onClaim} disabled={!done || claimed} className="lab-button text-xs disabled:cursor-not-allowed disabled:opacity-40">{claimed ? 'Claimed ✓' : done ? 'Claim' : 'Locked'}</button>
+        <span className="text-xs text-muted">Reward: +{q.rewardXp} XP \u00b7 +{q.rewardCoins} \ud83e\ude99 \u00b7 +{q.rewardHints} \ud83d\udca1</span>
+        <button type="button" onClick={onClaim} disabled={!done || claimed} className="lab-button text-xs disabled:cursor-not-allowed disabled:opacity-40">{claimed ? 'Claimed \u2713' : done ? 'Claim' : 'Locked'}</button>
       </div>
     </aside>
   )
@@ -235,7 +229,7 @@ function StreakLadderPanel({ stats, onClaim }: { stats: Stats; onClaim: (days: n
   return (
     <aside className="lab-panel">
       <div className="flex items-center justify-between gap-3">
-        <div><p className="lab-eyebrow">Streak Ladder</p><h3>{streak} hari beruntun 🔥</h3></div>
+        <div><p className="lab-eyebrow">Streak Ladder</p><h3>{streak} hari beruntun \ud83d\udd25</h3></div>
       </div>
       <div className="mt-3 space-y-2">
         {STREAK_TIERS.map((tier) => {
@@ -245,12 +239,28 @@ function StreakLadderPanel({ stats, onClaim }: { stats: Stats; onClaim: (days: n
             <div key={tier.days} className="flex items-center justify-between gap-2 rounded-2xl border border-white/8 bg-white/5 px-3 py-2">
               <div className="flex items-center gap-2">
                 <span className={`inline-flex h-7 w-9 items-center justify-center rounded-full text-xs font-black ${reached ? 'bg-cyan-400/20 text-cyan-100' : 'bg-white/5 text-slate-500'}`}>{tier.days}d</span>
-                <span className="text-xs text-slate-400">+{tier.rewardXp} XP · +{tier.rewardCoins} 🪙{tier.rewardHints ? ` · +${tier.rewardHints} 💡` : ''}</span>
+                <span className="text-xs text-muted">+{tier.rewardXp} XP \u00b7 +{tier.rewardCoins} \ud83e\ude99{tier.rewardHints ? ` \u00b7 +${tier.rewardHints} \ud83d\udca1` : ''}</span>
               </div>
-              <button type="button" onClick={() => onClaim(tier.days)} disabled={!reached || claimed} className="lab-button text-xs disabled:cursor-not-allowed disabled:opacity-40">{claimed ? '✓' : reached ? 'Claim' : '🔒'}</button>
+              <button type="button" onClick={() => onClaim(tier.days)} disabled={!reached || claimed} className="lab-button text-xs disabled:cursor-not-allowed disabled:opacity-40">{claimed ? '\u2713' : reached ? 'Claim' : '\ud83d\udd12'}</button>
             </div>
           )
         })}
+      </div>
+    </aside>
+  )
+}
+
+function StatsPanel({ discoveries, stats }: { discoveries: Discovery[]; stats: Stats }) {
+  const goal = nextMilestone(discoveries.length)
+  const rep = labReputation(discoveries, stats)
+  return (
+    <aside className="lab-panel">
+      <p className="lab-eyebrow">Lab Statistics</p>
+      <div className="stat-grid">
+        <div className="stat-cell"><span>{discoveries.length}/{goal}</span><small>Discovery Index</small></div>
+        <div className="stat-cell"><span>{stats.currentStreak || 0}d</span><small>Active Streak</small></div>
+        <div className="stat-cell"><span>{stats.coins ?? 0}</span><small>Lab Coins</small></div>
+        <div className="stat-cell"><span>{rep}</span><small>Reputation</small></div>
       </div>
     </aside>
   )
@@ -267,7 +277,7 @@ function CollectionPanel({ discoveries }: { discoveries: Discovery[] }) {
         <span className="rounded-full border border-cyan-300/20 bg-cyan-300/10 px-3 py-1 text-xs font-black text-cyan-100">{pct}%</span>
       </div>
       <div className="lab-progress mt-4"><div style={{ width: `${pct}%` }} /></div>
-      <p className="mt-3 text-xs text-slate-400">Menuju milestone berikutnya: {goal}</p>
+      <p className="mt-3 text-xs text-muted">Menuju milestone berikutnya: {goal}</p>
       <div className="mt-3 flex flex-wrap gap-1.5">
         {COLLECTION_MILESTONES.map((m) => (
           <span key={m} className={`rounded-full px-2 py-0.5 text-[10px] font-black ${count >= m ? 'bg-cyan-400/20 text-cyan-100' : 'bg-white/5 text-slate-500'}`}>{m}</span>
@@ -286,9 +296,9 @@ function ResearchLog({ discoveries }: { discoveries: Discovery[] }) {
         {recent.length ? recent.map((d) => (
           <div key={`${d.result}-${d.discoveredAt}`} className="research-log-row">
             <span>{d.emoji}</span>
-            <div className="min-w-0 flex-1"><strong>{d.result}</strong><small>{d.formula ?? 'No formula'} · {RARITY_LABEL[d.rarity]}</small></div>
+            <div className="min-w-0 flex-1"><strong>{d.result}</strong><small>{d.formula ?? 'No formula'} \u00b7 {RARITY_LABEL[d.rarity]}</small></div>
           </div>
-        )) : <p className="text-sm text-slate-400">Belum ada discovery. Jalankan eksperimen pertama.</p>}
+        )) : <p className="text-sm text-muted">Belum ada discovery. Jalankan eksperimen pertama.</p>}
       </div>
     </aside>
   )
@@ -302,7 +312,7 @@ function MasteryPanel({ discoveries }: { discoveries: Discovery[] }) {
       <div className="mt-3 space-y-3">
         {top.map((m) => (
           <div key={m.category}>
-            <div className="mb-1 flex items-center justify-between text-xs"><span>{MASTERY_LABEL[m.category]}</span><span className="text-slate-400">{m.count}</span></div>
+            <div className="mb-1 flex items-center justify-between text-xs"><span>{MASTERY_LABEL[m.category]}</span><span className="text-muted">{m.count}</span></div>
             <div className="lab-progress"><div style={{ width: `${m.pct}%` }} /></div>
           </div>
         ))}
@@ -331,6 +341,7 @@ export default function Home() {
   const [particles, setParticles] = useState<Particle[]>([])
   const [dragOver, setDragOver] = useState(false)
   const [sideTab, setSideTab] = useState<SideTab>('quests')
+  const [mobileView, setMobileView] = useState<MobileView>('lab')
 
   useEffect(() => {
     setDiscoveries(loadDiscoveries())
@@ -362,12 +373,13 @@ export default function Home() {
   }, [lang, discoveries])
 
   const selEls = useMemo(() => selected.map((id) => inventory.find((e) => e.id === id)).filter(Boolean) as Element[], [selected, inventory])
+  const canRun = selEls.length === 2 && !loading
 
   const spawnParticles = useCallback((success: boolean, rarity: keyof typeof RARITY_GLOW = 'rare') => {
     const palette = success ? ['#38bdf8', '#818cf8', '#a78bfa', '#f472b6', '#fbbf24', '#34d399'] : ['#fb7185', '#f97316', '#fca5a5']
-    const count = success ? 28 : 12
-    const spread = success ? 280 : 120
-    const arr = Array.from({ length: count }, (_, i) => ({ id: i, x: (Math.random() - 0.5) * spread, y: (Math.random() - 0.5) * spread - 40, color: palette[i % palette.length], size: 4 + Math.random() * (success ? 10 : 6), delay: Math.random() * 0.22 }))
+    const count = success ? 16 : 8
+    const spread = success ? 260 : 110
+    const arr = Array.from({ length: count }, (_, i) => ({ id: i, x: (Math.random() - 0.5) * spread, y: (Math.random() - 0.5) * spread - 40, color: palette[i % palette.length], size: 4 + Math.random() * (success ? 9 : 5), delay: Math.random() * 0.2 }))
     setParticles(arr)
     setTimeout(() => setParticles([]), 1400)
   }, [])
@@ -415,7 +427,7 @@ export default function Home() {
       bonusXp: (stats.bonusXp ?? 0) + ch.rewardXp,
       coins: (stats.coins ?? 0) + ch.rewardCoins,
       hintTokens: (stats.hintTokens ?? 0) + ch.rewardHints,
-    }, `Daily claimed! +${ch.rewardXp} XP · +${ch.rewardCoins} coins · +${ch.rewardHints} hint`)
+    }, `Daily claimed! +${ch.rewardXp} XP \u00b7 +${ch.rewardCoins} coins \u00b7 +${ch.rewardHints} hint`)
   }
 
   function claimWeekly() {
@@ -427,7 +439,7 @@ export default function Home() {
       bonusXp: (stats.bonusXp ?? 0) + q.rewardXp,
       coins: (stats.coins ?? 0) + q.rewardCoins,
       hintTokens: (stats.hintTokens ?? 0) + q.rewardHints,
-    }, `Weekly quest! +${q.rewardXp} XP · +${q.rewardCoins} coins · +${q.rewardHints} hint`)
+    }, `Weekly quest! +${q.rewardXp} XP \u00b7 +${q.rewardCoins} coins \u00b7 +${q.rewardHints} hint`)
   }
 
   function claimStreak(days: number) {
@@ -439,7 +451,7 @@ export default function Home() {
       bonusXp: (stats.bonusXp ?? 0) + tier.rewardXp,
       coins: (stats.coins ?? 0) + tier.rewardCoins,
       hintTokens: (stats.hintTokens ?? 0) + tier.rewardHints,
-    }, `Streak ${days}d! +${tier.rewardXp} XP · +${tier.rewardCoins} coins`)
+    }, `Streak ${days}d! +${tier.rewardXp} XP \u00b7 +${tier.rewardCoins} coins`)
   }
 
   function claimMystery() {
@@ -450,7 +462,7 @@ export default function Home() {
       solvedMysteries: [...(stats.solvedMysteries ?? []), m.id],
       bonusXp: (stats.bonusXp ?? 0) + m.rewardXp,
       coins: (stats.coins ?? 0) + m.rewardCoins,
-    }, `Mystery solved! +${m.rewardXp} XP · +${m.rewardCoins} coins`)
+    }, `Mystery solved! +${m.rewardXp} XP \u00b7 +${m.rewardCoins} coins`)
   }
 
   function useMysteryHint() {
@@ -550,23 +562,35 @@ export default function Home() {
     (isWeeklyComplete(weeklyQ, discoveries) && !isWeeklyClaimed(weeklyQ, stats)) ||
     (isMysterySolved(mystery, discoveries) && !isMysteryClaimed(mystery, stats))
   const rewardsClaimable = STREAK_TIERS.some((t) => isStreakReached(t.days, stats) && !isStreakClaimed(t.days, stats))
+  const anyClaimable = questsClaimable || rewardsClaimable
+
+  function openPanel(tab: SideTab) { setSideTab(tab); setMobileView('panel') }
+  function openProfile() { if (user) setShowSettings(true); else setShowAuth(true) }
 
   return (
-    <main className="lab-shell">
+    <main className="app" data-mview={mobileView} data-side={sideTab}>
       <ParticleBurst particles={particles} />
-      <header className="lab-topbar">
-        <Link href="/pokedex" className="lab-nav-chip">📒 Archive</Link>
-        <Link href="/leaderboard" className="lab-nav-chip">🏆 Reputation</Link>
-        <button onClick={toggleTheme} className="lab-nav-chip" type="button" aria-label="Toggle theme">{theme === 'dark' ? '☀️' : '🌙'} Theme</button>
-        <button onClick={() => setShowSettings(true)} className="lab-nav-chip" type="button" aria-label="Settings">⚙️</button>
-        <button onClick={() => setShowKey(true)} className="lab-nav-chip" type="button" aria-label="API key">🔑</button>
-        {user ? <button onClick={signOut} className="lab-nav-chip" type="button" aria-label="Sign out">👤</button> : <button onClick={() => setShowAuth(true)} className="lab-nav-chip lab-nav-primary" type="button">Login</button>}
-      </header>
 
-      <LabStatus discoveries={discoveries} stats={stats} />
+      {/* Desktop rail */}
+      <aside className="rail">
+        <div className="rail-brand" aria-hidden>\u2697\ufe0f</div>
+        <nav className="rail-nav" aria-label="Primary">
+          <button type="button" className="rail-btn is-active" aria-current="page" title="Lab">\ud83e\uddea</button>
+          <Link href="/pokedex" className="rail-btn" title="Archive">\ud83d\udcd2</Link>
+          <Link href="/leaderboard" className="rail-btn" title="Reputation">\ud83c\udfc6</Link>
+        </nav>
+        <div className="rail-foot">
+          <button onClick={toggleTheme} className="rail-btn" type="button" aria-label="Toggle theme">{theme === 'dark' ? '\u2600\ufe0f' : '\ud83c\udf19'}</button>
+          <button onClick={() => setShowSettings(true)} className="rail-btn" type="button" aria-label="Settings">\u2699\ufe0f</button>
+          <button onClick={() => setShowKey(true)} className="rail-btn" type="button" aria-label="API key">\ud83d\udd11</button>
+          {user ? <button onClick={signOut} className="rail-btn" type="button" aria-label="Sign out">\ud83d\udc64</button> : <button onClick={() => setShowAuth(true)} className="rail-btn is-active" type="button" aria-label="Login">\u27a1\ufe0f</button>}
+        </div>
+      </aside>
 
-      <div className="lab-grid">
-        <div className="lab-main-stage">
+      {/* Center gameplay */}
+      <section className="stage" aria-label="Gameplay">
+        <StageHead discoveries={discoveries} stats={stats} />
+        <div className="stage-scroll">
           <ReactionChamber selected={selEls} state={reactorState} dragOver={dragOver} onRun={combine} onClear={() => setSelected([])} onDropSpecimen={addToChamber} onRemoveSpecimen={(i) => setSelected((prev) => prev.filter((_, idx) => idx !== i))} onDragStateChange={setDragOver} />
           <section className="specimen-dock" aria-label="Specimen dock">
             <div className="mb-3 flex items-center justify-between gap-3">
@@ -586,20 +610,16 @@ export default function Home() {
             </div>
           </section>
         </div>
+      </section>
 
-        <div className="lab-side-stage">
-          <div className="flex gap-2" role="tablist" aria-label="Lab panels">
-            <button type="button" role="tab" aria-selected={sideTab === 'quests'} onClick={() => setSideTab('quests')} className={`lab-nav-chip relative flex-1 text-center ${sideTab === 'quests' ? 'lab-nav-primary' : ''}`}>
-              🎯 Quests{questsClaimable ? <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-cyan-400" aria-label="reward ready" /> : null}
-            </button>
-            <button type="button" role="tab" aria-selected={sideTab === 'rewards'} onClick={() => setSideTab('rewards')} className={`lab-nav-chip relative flex-1 text-center ${sideTab === 'rewards' ? 'lab-nav-primary' : ''}`}>
-              🏆 Rewards{rewardsClaimable ? <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-cyan-400" aria-label="reward ready" /> : null}
-            </button>
-            <button type="button" role="tab" aria-selected={sideTab === 'progress'} onClick={() => setSideTab('progress')} className={`lab-nav-chip flex-1 text-center ${sideTab === 'progress' ? 'lab-nav-primary' : ''}`}>
-              📊 Progress
-            </button>
-          </div>
-
+      {/* Right progression panel */}
+      <aside className="panel" aria-label="Progression">
+        <div className="panel-tabs" role="tablist" aria-label="Lab panels">
+          <button type="button" role="tab" aria-selected={sideTab === 'quests'} onClick={() => setSideTab('quests')} className={`ptab ${sideTab === 'quests' ? 'is-active' : ''}`}>\ud83c\udfaf Quests{questsClaimable ? <span className="dot" aria-label="reward ready" /> : null}</button>
+          <button type="button" role="tab" aria-selected={sideTab === 'rewards'} onClick={() => setSideTab('rewards')} className={`ptab ${sideTab === 'rewards' ? 'is-active' : ''}`}>\ud83c\udfc6 Rewards{rewardsClaimable ? <span className="dot" aria-label="reward ready" /> : null}</button>
+          <button type="button" role="tab" aria-selected={sideTab === 'progress'} onClick={() => setSideTab('progress')} className={`ptab ${sideTab === 'progress' ? 'is-active' : ''}`}>\ud83d\udcca Progress</button>
+        </div>
+        <div className="panel-scroll">
           {sideTab === 'quests' && (
             <>
               <DailyResearchPanel discoveries={discoveries} stats={stats} onClaim={claimDaily} />
@@ -613,17 +633,34 @@ export default function Home() {
               <CollectionPanel discoveries={discoveries} />
               <MasteryPanel discoveries={discoveries} />
               <ResearchLog discoveries={discoveries} />
+              <StatsPanel discoveries={discoveries} stats={stats} />
             </>
           )}
         </div>
+      </aside>
+
+      {/* Mobile sticky Experiment CTA */}
+      <div className="cta-dock">
+        <button type="button" className="cta-run" onClick={combine} disabled={!canRun}>
+          {reactorState === 'reacting' ? 'Synthesizing\u2026' : canRun ? 'Run Experiment' : `Pick ${2 - selEls.length} more specimen`}
+        </button>
       </div>
+
+      {/* Mobile bottom navigation */}
+      <nav className="tabbar" aria-label="Sections">
+        <button type="button" className={`tab-item ${mobileView === 'lab' ? 'is-active' : ''}`} onClick={() => setMobileView('lab')}><span className="ico">\ud83e\uddea</span>Lab</button>
+        <button type="button" className={`tab-item ${mobileView === 'panel' && sideTab === 'quests' ? 'is-active' : ''}`} onClick={() => openPanel('quests')}><span className="ico">\ud83c\udfaf</span>Quests{anyClaimable ? <span className="dot" aria-label="reward ready" /> : null}</button>
+        <button type="button" className={`tab-item ${mobileView === 'panel' && sideTab === 'progress' ? 'is-active' : ''}`} onClick={() => openPanel('progress')}><span className="ico">\ud83d\udcca</span>Progress</button>
+        <Link href="/pokedex" className="tab-item"><span className="ico">\ud83d\udcd2</span>Archive</Link>
+        <button type="button" className="tab-item" onClick={openProfile}><span className="ico">\ud83d\udc64</span>You</button>
+      </nav>
 
       {discovery && <DiscoveryModal result={discovery.result} isNew={discovery.isNew} xpGain={discovery.xpGain} onClose={() => setDiscovery(null)} />}
       {showKey && <ApiKeyModal current={apiKey} onClose={() => setShowKey(false)} onSave={handleSaveKey} />}
       {showAuth && <AuthModal onClose={() => setShowAuth(false)} />}
       {showSettings && <SettingsModal onClose={() => setShowSettings(false)} />}
       {achToast && <AchievementToast emoji={achToast.emoji} title={achToast.title} label={achToast.label} />}
-      {msg && <div className="toast-enter fixed bottom-6 left-1/2 z-50 -translate-x-1/2 rounded-2xl border border-white/10 bg-slate-950/92 px-4 py-3 text-sm text-white shadow-2xl" role="status">{msg}</div>}
+      {msg && <div className="toast-enter fixed bottom-24 left-1/2 z-50 -translate-x-1/2 rounded-2xl border border-white/10 bg-slate-950/92 px-4 py-3 text-sm text-white shadow-2xl" role="status">{msg}</div>}
     </main>
   )
 }
