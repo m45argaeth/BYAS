@@ -296,3 +296,283 @@ function MasteryPanel({ discoveries }: { discoveries: Discovery[] }) {
 
 export default function Home() {
   const { user } = useAuth()
+  const { lang } = useI18n()
+
+  const [discoveries, setDiscoveries] = useState<Discovery[]>([])
+  const [stats, setStats] = useState<Stats>(DEFAULT_STATS)
+  const [selected, setSelected] = useState<string[]>([])
+  const [loading, setLoading] = useState(false)
+  const [discovery, setDiscovery] = useState<{ result: CombineResult; isNew: boolean; xpGain: number } | null>(null)
+  const [msg, setMsg] = useState<string | null>(null)
+  const [achToast, setAchToast] = useState<AchToast | null>(null)
+  const [reactorState, setReactorState] = useState<ReactorState>('idle')
+  const [particles, setParticles] = useState<Particle[]>([])
+  const [dragOver, setDragOver] = useState(false)
+
+  useEffect(() => {
+    setDiscoveries(loadDiscoveries())
+    setStats({ ...DEFAULT_STATS, ...loadStats() })
+    initSound()
+  }, [])
+
+  useEffect(() => {
+    if (!user) return
+    let cancelled = false
+    syncDiscoveries(user.id).then((merged) => { if (!cancelled) setDiscoveries(merged) })
+    syncStats(user.id).then((s) => { if (!cancelled) setStats({ ...DEFAULT_STATS, ...s }) })
+    return () => { cancelled = true }
+  }, [user])
+
+  useEffect(() => {
+    if (loading) setReactorState('reacting')
+    else setReactorState(selected.length === 2 ? 'ready' : 'idle')
+  }, [loading, selected.length])
+
+  const inventory: Element[] = useMemo(() => {
+    const map = new Map<string, Element>()
+    for (const s of buildStarters(lang)) map.set(s.id, s)
+    for (const d of discoveries) {
+      if (!map.has(d.result)) map.set(d.result, { id: d.result, name: d.result, emoji: d.emoji, formula: d.formula ?? undefined, rarity: d.rarity, category: d.category })
+    }
+    return Array.from(map.values())
+  }, [lang, discoveries])
+
+  const selEls = useMemo(() => selected.map((id) => inventory.find((e) => e.id === id)).filter(Boolean) as Element[], [selected, inventory])
+
+  const spawnParticles = useCallback((success: boolean, rarity: keyof typeof RARITY_GLOW = 'rare') => {
+    const palette = success ? ['#38bdf8', '#818cf8', '#a78bfa', '#f472b6', '#fbbf24', '#34d399'] : ['#fb7185', '#f97316', '#fca5a5']
+    const count = success ? 28 : 12
+    const spread = success ? 280 : 120
+    const arr = Array.from({ length: count }, (_, i) => ({ id: i, x: (Math.random() - 0.5) * spread, y: (Math.random() - 0.5) * spread - 40, color: palette[i % palette.length], size: 4 + Math.random() * (success ? 10 : 6), delay: Math.random() * 0.22 }))
+    setParticles(arr)
+    setTimeout(() => setParticles([]), 1400)
+  }, [])
+
+  function toggle(id: string) {
+    playPop()
+    haptic(6)
+    setSelected((prev) => prev.includes(id) ? prev.filter((x) => x !== id) : prev.length >= 2 ? [prev[1], id] : [...prev, id])
+  }
+
+  function addToChamber(id: string) {
+    playPop()
+    haptic(10)
+    setSelected((prev) => prev.includes(id) ? prev : prev.length >= 2 ? [prev[1], id] : [...prev, id])
+  }
+
+  function showToast(text: string) { setMsg(text); setTimeout(() => setMsg(null), 2600) }
+
+  function commitStats(ns: Stats, toast: string) {
+    setStats(ns)
+    saveStats(ns)
+    playUnlock()
+    haptic(18)
+    showToast(toast)
+    if (user) pushStats(user.id, ns, totalXp(discoveries, ns)).catch(() => {})
+  }
+
+  function claimDaily() {
+    const ch = getDailyChallenge()
+    if (isDailyClaimed(ch, stats) || !isDailyComplete(ch, discoveries)) return
+    commitStats({
+      ...stats,
+      completedDailyChallenges: [...(stats.completedDailyChallenges ?? []), ch.id],
+      bonusXp: (stats.bonusXp ?? 0) + ch.rewardXp,
+      coins: (stats.coins ?? 0) + ch.rewardCoins,
+      hintTokens: (stats.hintTokens ?? 0) + ch.rewardHints,
+    }, `Daily claimed! +${ch.rewardXp} XP · +${ch.rewardCoins} coins · +${ch.rewardHints} hint`)
+  }
+
+  function claimWeekly() {
+    const q = getWeeklyQuest()
+    if (isWeeklyClaimed(q, stats) || !isWeeklyComplete(q, discoveries)) return
+    commitStats({
+      ...stats,
+      completedWeeklyQuests: [...(stats.completedWeeklyQuests ?? []), q.id],
+      bonusXp: (stats.bonusXp ?? 0) + q.rewardXp,
+      coins: (stats.coins ?? 0) + q.rewardCoins,
+      hintTokens: (stats.hintTokens ?? 0) + q.rewardHints,
+    }, `Weekly quest! +${q.rewardXp} XP · +${q.rewardCoins} coins · +${q.rewardHints} hint`)
+  }
+
+  function claimStreak(days: number) {
+    const tier = STREAK_TIERS.find((t) => t.days === days)
+    if (!tier || !isStreakReached(days, stats) || isStreakClaimed(days, stats)) return
+    commitStats({
+      ...stats,
+      claimedStreakRewards: [...(stats.claimedStreakRewards ?? []), days],
+      bonusXp: (stats.bonusXp ?? 0) + tier.rewardXp,
+      coins: (stats.coins ?? 0) + tier.rewardCoins,
+      hintTokens: (stats.hintTokens ?? 0) + tier.rewardHints,
+    }, `Streak ${days}d! +${tier.rewardXp} XP · +${tier.rewardCoins} coins`)
+  }
+
+  function claimMystery() {
+    const m = getMystery()
+    if (isMysteryClaimed(m, stats) || !isMysterySolved(m, discoveries)) return
+    commitStats({
+      ...stats,
+      solvedMysteries: [...(stats.solvedMysteries ?? []), m.id],
+      bonusXp: (stats.bonusXp ?? 0) + m.rewardXp,
+      coins: (stats.coins ?? 0) + m.rewardCoins,
+    }, `Mystery solved! +${m.rewardXp} XP · +${m.rewardCoins} coins`)
+  }
+
+  function useMysteryHint() {
+    const m = getMystery()
+    if ((stats.hintTokens ?? 0) < 1 || isMysteryHintUsed(m, stats)) return
+    const ns: Stats = {
+      ...stats,
+      hintTokens: (stats.hintTokens ?? 0) - 1,
+      mysteryHintsUsed: [...(stats.mysteryHintsUsed ?? []), m.id],
+    }
+    setStats(ns)
+    saveStats(ns)
+    playPop()
+    haptic(8)
+    if (user) pushStats(user.id, ns, totalXp(discoveries, ns)).catch(() => {})
+  }
+
+  function checkAchievements(ds: Discovery[], st: Stats) {
+    const level = levelProgress(totalXp(ds, st)).level
+    const unlocked = computeUnlocked(ds, st, level)
+    const seen = loadSeen()
+    const fresh = Array.from(unlocked).filter((id) => !seen.has(id))
+    if (!fresh.length) return
+    const ach = ACHIEVEMENTS.find((a) => a.id === fresh[0])
+    if (ach) {
+      setAchToast({ emoji: ach.emoji, title: ach.title, label: 'Achievement Unlocked' })
+      playUnlock()
+      setTimeout(() => setAchToast(null), 3600)
+    }
+    saveSeen(unlocked)
+  }
+
+  const combine = useCallback(async () => {
+    if (selected.length !== 2 || loading) return
+    const a = inventory.find((e) => e.id === selected[0])
+    const b = inventory.find((e) => e.id === selected[1])
+    if (!a || !b) return
+    setLoading(true)
+    playCombineCast()
+    try {
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+      let key = ''
+      try { key = (typeof localStorage !== 'undefined' && localStorage.getItem(MIMO_KEY)) || '' } catch {}
+      if (key) headers['x-mimo-key'] = key
+      const res = await fetch('/api/combine', { method: 'POST', headers, body: JSON.stringify({ aId: a.id, bId: b.id, aName: a.name, bName: b.name, lang }) })
+      const data = await res.json()
+      if (!res.ok || data.error) { playError(); setReactorState('failed'); spawnParticles(false); showToast('Experiment failed: ' + (data?.error ?? 'combine')); return }
+      const result = data as CombineResult
+      if (!result.reacted) { playError(); haptic(40); setReactorState('failed'); spawnParticles(false); showToast('No stable reaction detected.'); setSelected([]); return }
+      setReactorState('success')
+      spawnParticles(true, result.rarity)
+      playReactionBurst()
+      haptic(22)
+      const ns = recordPlay(stats)
+      const xpGain = xpForNewDiscovery(result, ns.currentStreak || 0)
+      const disc: Discovery = { ...result, discoveredAt: Date.now(), xp: xpGain }
+      const isNew = saveDiscovery(disc)
+      let nextList = discoveries
+      if (isNew) {
+        nextList = [...discoveries, disc]
+        setDiscoveries(nextList)
+        playSuccess()
+        if (user) { pushCloudDiscovery(user.id, disc).catch(() => {}); pushTotalXp(user.id, totalXp(nextList, ns)).catch(() => {}) }
+      } else playPop()
+      setStats(ns)
+      saveStats(ns)
+      if (user) pushStats(user.id, ns, totalXp(nextList, ns)).catch(() => {})
+      setDiscovery({ result, isNew, xpGain: isNew ? xpGain : 0 })
+      checkAchievements(nextList, ns)
+      setSelected([])
+    } catch {
+      playError(); setReactorState('failed'); spawnParticles(false); showToast('Network error. Lab connection unstable.')
+    } finally {
+      setLoading(false)
+      setTimeout(() => setReactorState('idle'), 900)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selected, loading, inventory, lang, stats, discoveries, user, spawnParticles])
+
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      const tag = (e.target as HTMLElement | null)?.tagName
+      if (tag === 'INPUT' || tag === 'TEXTAREA') return
+      if (discovery) return
+      if (e.key === 'Enter' && selected.length === 2 && !loading) { e.preventDefault(); combine() }
+      else if ((e.key === 'Escape' || e.key === 'Backspace') && selected.length) { e.preventDefault(); setSelected([]) }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [selected, loading, combine, discovery])
+
+  const ctaReady = selEls.length === 2 && reactorState !== 'reacting'
+
+  return (
+    <div className="app">
+      <ParticleBurst particles={particles} />
+
+      <aside className="rail">
+        <Link href="/" className="rail-brand" aria-label="BYAS Lab">🧪</Link>
+        <nav className="rail-nav">
+          <Link href="/" className="rail-btn is-active" aria-label="Lab" aria-current="page">🧪</Link>
+          <Link href="/pokedex" className="rail-btn" aria-label="Archive">📒</Link>
+          <Link href="/leaderboard" className="rail-btn" aria-label="Ranks">🏆</Link>
+        </nav>
+      </aside>
+
+      <div className="stage">
+        <GameHeader discoveries={discoveries} stats={stats} />
+        <div className="stage-scroll">
+          <ReactionChamber selected={selEls} state={reactorState} dragOver={dragOver} onRun={combine} onClear={() => setSelected([])} onDropSpecimen={addToChamber} onRemoveSpecimen={(i) => setSelected((prev) => prev.filter((_, idx) => idx !== i))} onDragStateChange={setDragOver} />
+          <section className="specimen-dock" aria-label="Specimen dock">
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <div><p className="lab-eyebrow">Specimen Dock</p><h3>Choose two materials</h3></div>
+              {selected.length ? <button onClick={() => setSelected([])} className="text-xs font-bold text-cyan-200/70 underline" type="button">clear selection</button> : null}
+            </div>
+            <div className="specimen-grid">
+              {inventory.map((el) => (
+                <SpecimenTile
+                  key={el.id}
+                  element={el}
+                  selected={selected.includes(el.id)}
+                  onSelect={() => toggle(el.id)}
+                  onDragStart={(e) => { e.dataTransfer.setData('text/plain', el.id); e.dataTransfer.effectAllowed = 'move' }}
+                />
+              ))}
+            </div>
+          </section>
+        </div>
+      </div>
+
+      <aside className="panel">
+        <div className="panel-scroll">
+          <p className="lab-eyebrow">Quests</p>
+          <DailyResearchPanel discoveries={discoveries} stats={stats} onClaim={claimDaily} />
+          <MysteryResearchPanel discoveries={discoveries} stats={stats} onClaim={claimMystery} onUseHint={useMysteryHint} />
+          <WeeklyQuestPanel discoveries={discoveries} stats={stats} onClaim={claimWeekly} />
+          <p className="lab-eyebrow">Rewards</p>
+          <StreakLadderPanel stats={stats} onClaim={claimStreak} />
+          <p className="lab-eyebrow">Progress</p>
+          <CollectionPanel discoveries={discoveries} />
+          <MasteryPanel discoveries={discoveries} />
+          <ResearchLog discoveries={discoveries} />
+          <StatsPanel discoveries={discoveries} stats={stats} />
+        </div>
+      </aside>
+
+      <div className="cta-dock">
+        <button type="button" className="cta-run" onClick={combine} disabled={!ctaReady}>
+          {reactorState === 'reacting' ? 'Synthesizing…' : ctaReady ? 'Run Experiment' : 'Pick 2 specimens'}
+        </button>
+      </div>
+
+      <BottomNav />
+
+      {discovery && <DiscoveryModal result={discovery.result} isNew={discovery.isNew} xpGain={discovery.xpGain} onClose={() => setDiscovery(null)} />}
+      {achToast && <AchievementToast emoji={achToast.emoji} title={achToast.title} label={achToast.label} />}
+      {msg && <div className="toast-enter fixed bottom-24 left-1/2 z-50 -translate-x-1/2 rounded-2xl border border-white/10 bg-slate-950/92 px-4 py-3 text-sm text-white shadow-2xl" role="status">{msg}</div>}
+    </div>
+  )
+}
