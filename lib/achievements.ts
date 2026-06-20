@@ -23,7 +23,7 @@ export function computeUnlocked(discoveries: Discovery[], stats: Stats, level: n
 
   if (count >= 1) unlocked.add('first')
   if (count >= 10) unlocked.add('ten')
-  if (count >= 30) unlocked.add('collector')
+  if (count >= 25) unlocked.add('collector')
   if (hasLegendary) unlocked.add('legendary')
   if ((stats.bestStreak ?? 0) >= 7) unlocked.add('streak7')
   if (level >= 5) unlocked.add('level5')
@@ -48,6 +48,6 @@ export function loadSeen(): Set<string> {
 export function saveSeen(ids: Set<string>) {
   if (typeof window === 'undefined') return
   try {
-    localStorage.setItem(KEY, JSON.stringify([...ids]))
+    localStorage.setItem(KEY, JSON.stringify(Array.from(ids)))
   } catch {}
 }
