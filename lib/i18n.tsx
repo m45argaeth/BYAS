@@ -297,4 +297,21 @@ export function I18nProvider({ children }: { children: ReactNode }) {
     const saved = localStorage.getItem('byas_lang') as Lang | null
     if (saved && ['id', 'en', 'cn'].includes(saved)) setLangState(saved)
   }, [])
-  function setLang(l:
+  function setLang(l: Lang) {
+    setLangState(l)
+    try {
+      localStorage.setItem('byas_lang', l)
+    } catch {}
+  }
+  function t(key: string, vars?: Record<string, string | number>) {
+    const d = DICT[lang] ?? DICT.id
+    return format(d[key] ?? EN[key] ?? key, vars)
+  }
+  return <I18nContext.Provider value= lang, setLang, t >{children}</I18nContext.Provider>
+}
+
+export function useI18n(): Ctx {
+  const c = useContext(I18nContext)
+  if (!c) return { lang: 'id', setLang: () => {}, t: (k: string) => k }
+  return c
+}
