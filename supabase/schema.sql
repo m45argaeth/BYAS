@@ -9,9 +9,18 @@ create table if not exists combinations (
   fun_fact text,
   rarity text,
   reacted boolean default true,
+  category text,
+  difficulty int default 1,
+  hint text,
+  ingredients jsonb default '[]'::jsonb,
   discovered_by uuid,
   created_at timestamptz default now()
 );
+
+alter table combinations add column if not exists category text;
+alter table combinations add column if not exists difficulty int default 1;
+alter table combinations add column if not exists hint text;
+alter table combinations add column if not exists ingredients jsonb default '[]'::jsonb;
 
 -- (legacy) inventory sederhana per pemain.
 create table if not exists player_elements (
@@ -30,9 +39,20 @@ create table if not exists user_discoveries (
   explanation text,
   fun_fact text,
   rarity text,
+  category text,
+  difficulty int default 1,
+  xp int default 10,
+  hint text,
+  ingredients jsonb default '[]'::jsonb,
   discovered_at timestamptz default now(),
   primary key (user_id, result)
 );
+
+alter table user_discoveries add column if not exists category text;
+alter table user_discoveries add column if not exists difficulty int default 1;
+alter table user_discoveries add column if not exists xp int default 10;
+alter table user_discoveries add column if not exists hint text;
+alter table user_discoveries add column if not exists ingredients jsonb default '[]'::jsonb;
 
 alter table user_discoveries enable row level security;
 drop policy if exists "own_discoveries" on user_discoveries;
@@ -49,12 +69,20 @@ create table if not exists player_stats (
   last_played date,
   total_xp int default 0,
   display_name text,
+  hint_tokens int default 0,
+  lab_reputation int default 0,
+  completed_daily_challenges jsonb default '[]'::jsonb,
+  failed_experiments int default 0,
   updated_at timestamptz default now()
 );
 
 -- Untuk deployment lama: tambahkan kolom baru bila belum ada.
 alter table player_stats add column if not exists total_xp int default 0;
 alter table player_stats add column if not exists display_name text;
+alter table player_stats add column if not exists hint_tokens int default 0;
+alter table player_stats add column if not exists lab_reputation int default 0;
+alter table player_stats add column if not exists completed_daily_challenges jsonb default '[]'::jsonb;
+alter table player_stats add column if not exists failed_experiments int default 0;
 
 alter table player_stats enable row level security;
 
