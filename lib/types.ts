@@ -1,6 +1,15 @@
 export type Lang = 'id' | 'en' | 'cn'
 
-export type Rarity = 'common' | 'uncommon' | 'rare' | 'legendary'
+export type Rarity = 'common' | 'uncommon' | 'rare' | 'epic' | 'legendary' | 'mythic'
+
+export type MasteryCategory =
+  | 'organic'
+  | 'inorganic'
+  | 'metals'
+  | 'gases'
+  | 'biology'
+  | 'energy'
+  | 'industrial'
 
 export type ElementGroup =
   | 'alkali-metal'
@@ -21,6 +30,10 @@ export interface CombineResult {
   fun_fact: string
   rarity: Rarity
   reacted: boolean
+  category?: MasteryCategory
+  difficulty?: number
+  hint?: string
+  ingredients?: string[]
 }
 
 export interface Element {
@@ -31,6 +44,8 @@ export interface Element {
   atomicNumber?: number
   group?: ElementGroup
   period?: number
+  rarity?: Rarity
+  category?: MasteryCategory
 }
 
 export interface Discovery extends CombineResult {
@@ -42,4 +57,9 @@ export interface Stats {
   bestStreak: number
   lastPlayed: string | null
   displayName: string | null
+  totalXp?: number
+  hintTokens?: number
+  labReputation?: number
+  completedDailyChallenges?: string[]
+  failedExperiments?: number
 }

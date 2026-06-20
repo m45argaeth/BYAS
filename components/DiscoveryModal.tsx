@@ -1,7 +1,8 @@
 'use client'
 
 import type { CombineResult } from '@/lib/types'
-import { RARITY_GRADIENT, RARITY_GLOW } from '@/lib/rarity'
+import { RARITY_GRADIENT, RARITY_GLOW, RARITY_LABEL } from '@/lib/rarity'
+import { MASTERY_LABEL, guessCategory } from '@/lib/progress'
 import { useI18n } from '@/lib/i18n'
 import { shareDiscovery } from '@/lib/share'
 import { playPop } from '@/lib/sound'
@@ -20,8 +21,8 @@ export function DiscoveryModal({
   const { t } = useI18n()
   const grad = RARITY_GRADIENT[result.rarity] ?? RARITY_GRADIENT.common
   const glow = RARITY_GLOW[result.rarity] ?? RARITY_GLOW.common
-  const headerCls = 'bg-gradient-to-br ' + grad + ' p-6 text-center text-white'
-  const rarityLabel = t('rarity.' + result.rarity)
+  const rarityLabel = RARITY_LABEL[result.rarity] ?? result.rarity
+  const category = result.category ?? guessCategory(result)
 
   function onShare() {
     playPop()
@@ -34,58 +35,58 @@ export function DiscoveryModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end justify-center bg-black/65 backdrop-blur-sm sm:items-center sm:p-4"
+      className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/78 backdrop-blur-xl sm:items-center sm:p-4"
       onClick={onClose}
+      role="dialog"
+      aria-modal="true"
     >
       <div
-        className="w-full max-w-sm overflow-hidden rounded-t-2xl card sm:rounded-2xl animate-reveal-pop"
-        style={{
-          boxShadow: `0 0 40px ${glow}, 0 20px 60px rgba(0,0,0,0.4)`,
-        }}
+        className="discovery-shell w-full max-w-md overflow-hidden rounded-t-[2rem] border border-white/14 bg-slate-950/92 text-white shadow-2xl sm:rounded-[2rem] animate-reveal-pop"
+        style={{ boxShadow: `0 0 72px ${glow}, 0 28px 90px rgba(0,0,0,0.62)` }}
         onClick={stop}
       >
-        <div className={headerCls}>
-          {isNew ? (
-            <p className="mb-1 text-xs font-bold uppercase tracking-widest">
-              {t('discovery.new')}
-            </p>
-          ) : null}
-          <div className="animate-pop text-7xl" aria-hidden>
-            {result.emoji}
-          </div>
-          <h2 className="mt-2 text-2xl font-extrabold">{result.result}</h2>
-          {result.formula ? (
-            <p className="mt-1 font-mono text-sm opacity-90">{result.formula}</p>
-          ) : null}
-          <p className="mt-2 inline-block rounded-full bg-black/20 px-4 py-0.5 text-xs font-bold uppercase tracking-wide">
-            {rarityLabel}
+        <div className="relative overflow-hidden p-6 text-center">
+          <div className={`absolute inset-0 bg-gradient-to-br ${grad} opacity-24`} />
+          <div className="absolute inset-x-8 top-6 h-px bg-gradient-to-r from-transparent via-white/55 to-transparent" />
+          <p className="relative z-10 text-[10px] font-black uppercase tracking-[0.36em] text-white/70">
+            {isNew ? 'Discovery Unlocked' : 'Research Entry'}
           </p>
+          <div className="relative z-10 mx-auto mt-5 flex h-28 w-28 items-center justify-center rounded-[2rem] border border-white/18 bg-white/10 text-7xl shadow-inner backdrop-blur">
+            <span className="animate-orbital-float">{result.emoji}</span>
+          </div>
+          <h2 className="relative z-10 mt-4 text-3xl font-black tracking-tight">{result.result}</h2>
+          {result.formula ? <p className="relative z-10 mt-1 font-mono text-sm text-white/78">{result.formula}</p> : null}
+          <div className="relative z-10 mt-4 flex flex-wrap items-center justify-center gap-2">
+            <span className="rounded-full border border-white/16 bg-white/12 px-3 py-1 text-[10px] font-black uppercase tracking-[0.2em]">
+              {rarityLabel}
+            </span>
+            <span className="rounded-full border border-white/16 bg-white/12 px-3 py-1 text-[10px] font-bold text-white/75">
+              {MASTERY_LABEL[category]}
+            </span>
+          </div>
           {typeof xpGain === 'number' && xpGain > 0 ? (
-            <p className="mt-2 animate-float-xp text-base font-extrabold tracking-wide">
+            <p className="relative z-10 mt-4 animate-float-xp text-lg font-black tracking-wide text-cyan-100">
               +{xpGain} XP
             </p>
           ) : null}
         </div>
-        <div className="space-y-3 p-5 text-sm">
-          <p>{result.explanation}</p>
+        <div className="space-y-3 border-t border-white/10 p-5 text-sm">
+          <p className="leading-relaxed text-slate-200">{result.explanation}</p>
           {result.fun_fact ? (
-            <p className="rounded-lg card-2 p-3 text-muted">
-              💡 {result.fun_fact}
-            </p>
+            <div className="rounded-2xl border border-cyan-300/14 bg-cyan-300/8 p-3 text-slate-300">
+              <p className="text-[10px] font-black uppercase tracking-[0.22em] text-cyan-200/70">Lab Note</p>
+              <p className="mt-1">{result.fun_fact}</p>
+            </div>
+          ) : null}
+          {result.hint ? (
+            <div className="rounded-2xl border border-violet-300/14 bg-violet-300/8 p-3 text-slate-300">
+              <p className="text-[10px] font-black uppercase tracking-[0.22em] text-violet-200/70">Future Hint</p>
+              <p className="mt-1">{result.hint}</p>
+            </div>
           ) : null}
           <div className="flex gap-2 pt-1">
-            <button
-              onClick={onShare}
-              className="flex-1 rounded-xl card-2 py-2.5 font-semibold transition hover:bg-sky-500/10 hover:text-sky-400"
-            >
-              📤 {t('discovery.share')}
-            </button>
-            <button
-              onClick={onClose}
-              className="flex-1 rounded-xl bg-sky-600 py-2.5 font-semibold text-white transition hover:bg-sky-500 active:scale-[0.98]"
-            >
-              {t('discovery.continue')}
-            </button>
+            <button onClick={onShare} className="lab-button flex-1" type="button">📤 {t('discovery.share')}</button>
+            <button onClick={onClose} className="lab-button-primary flex-1" type="button">{t('discovery.continue')}</button>
           </div>
         </div>
       </div>

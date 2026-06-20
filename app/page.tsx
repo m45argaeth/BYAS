@@ -1,17 +1,16 @@
 'use client'
 
-import { useEffect, useMemo, useState, useCallback } from 'react'
+import { useCallback, useEffect, useMemo, useState, type CSSProperties } from 'react'
 import Link from 'next/link'
 import { buildStarters, GROUP_COLORS } from '@/lib/elements'
-import type { CombineResult, Discovery, Element, Stats, ElementGroup } from '@/lib/types'
+import type { CombineResult, Discovery, Element, ElementGroup, Stats } from '@/lib/types'
 import { DiscoveryModal } from '@/components/DiscoveryModal'
 import { ApiKeyModal } from '@/components/ApiKeyModal'
 import { AuthModal } from '@/components/AuthModal'
 import { SettingsModal } from '@/components/SettingsModal'
-import { StatsBar } from '@/components/StatsBar'
 import { AchievementToast } from '@/components/AchievementToast'
 import { MIMO_KEY, saveDiscovery, loadDiscoveries, loadStats, saveStats } from '@/lib/storage'
-import { totalXpFromDiscoveries, recordPlay, levelFromXp, XP_BY_RARITY } from '@/lib/progress'
+import { labReputation, levelProgress, masteryBreakdown, MASTERY_LABEL, recordPlay, researchRank, totalXpFromDiscoveries, xpForDiscovery } from '@/lib/progress'
 import { useAuth } from '@/lib/useAuth'
 import { syncDiscoveries, syncStats } from '@/lib/sync'
 import { pushCloudDiscovery, pushStats, pushTotalXp } from '@/lib/cloud'
@@ -20,90 +19,20 @@ import { useI18n } from '@/lib/i18n'
 import { useTheme } from '@/lib/theme'
 import { initSound, playPop, playError, playSuccess, playUnlock, playCombineCast, playReactionBurst } from '@/lib/sound'
 import { ACHIEVEMENTS, computeUnlocked, loadSeen, saveSeen } from '@/lib/achievements'
+import { RARITY_GLOW, RARITY_LABEL, RARITY_TEXT } from '@/lib/rarity'
 
-const DEFAULT_STATS: Stats = { currentStreak: 0, bestStreak: 0, lastPlayed: null, displayName: null }
+const DEFAULT_STATS: Stats = { currentStreak: 0, bestStreak: 0, lastPlayed: null, displayName: null, hintTokens: 0, failedExperiments: 0 }
+const MAX_COLLECTION = 180
 
+type ReactorState = 'idle' | 'ready' | 'reacting' | 'success' | 'failed'
 type AchToast = { emoji: string; title: string; label: string }
 
-interface Particle {
-  id: number
-  x: number
-  y: number
-  color: string
-  size: number
-  delay: number
-}
-
-function ElementCard({ el, selected, onClick }: { el: Element; selected: boolean; onClick: () => void }) {
-  const group: ElementGroup = el.group ?? 'unknown'
-  const c = GROUP_COLORS[group]
-  const hasAtomic = typeof el.atomicNumber === 'number'
-  const symbol = el.id.length <= 3 ? el.id : ''
-  return (
-    <button
-      onClick={onClick}
-      className={`pt-card animate-fade-in ${selected ? 'selected' : ''}`}
-      style={{
-        borderColor: selected ? c.glow : c.border,
-        boxShadow: selected
-          ? `0 0 14px ${c.ring}, 0 0 36px ${c.ring.replace('0.45', '0.15')}, inset 0 0 14px ${c.ring.replace('0.45', '0.06')}`
-          : 'none',
-        ['--pt-glow' as string]: c.ring.replace('0.45', '0.08'),
-      }}
-    >
-      {hasAtomic && <span className="pt-atomic" style=100>{el.atomicNumber}</span>}
-      {symbol ? (
-        <span className="pt-symbol text-xl sm:text-2xl" style=100>{symbol}</span>
-      ) : (
-        <span className="relative z-10 text-2xl sm:text-3xl">{el.emoji}</span>
-      )}
-      <span className="pt-name mt-0.5">{el.name}</span>
-      {!hasAtomic && el.formula && (
-        <span className="relative z-10 font-mono text-[9px] text-muted mt-0.5">{el.formula}</span>
-      )}
-    </button>
-  )
-}
-
-function CombineSlot({ el, pick }: { el?: Element; pick: string }) {
-  const key = el?.id ?? 'empty'
-  if (!el) {
-    return (
-      <div className="flex h-28 sm:h-32 items-center justify-center rounded-2xl border-2 border-dashed border-base bg-transparent">
-        <span className="text-xs sm:text-sm text-muted font-medium">{pick}</span>
-      </div>
-    )
-  }
-  const group: ElementGroup = el.group ?? 'unknown'
-  const c = GROUP_COLORS[group]
-  const symbol = el.id.length <= 3 ? el.id : ''
-  const hasAtomic = typeof el.atomicNumber === 'number'
-  return (
-    <div
-      key={key}
-      className="slot-ring filled flex h-28 sm:h-32 flex-col items-center justify-center gap-1 rounded-2xl"
-      style={{
-        border: `2px solid ${c.glow}`,
-        boxShadow: `0 0 18px ${c.ring}, inset 0 0 20px ${c.ring.replace('0.45', '0.08')}`,
-        background: `radial-gradient(circle at 50% 30%, ${c.ring.replace('0.45', '0.12')}, transparent 70%)`,
-      }}
-    >
-      {hasAtomic && <span className="absolute top-2 left-3 text-[10px] font-bold" style=100>{el.atomicNumber}</span>}
-      {symbol ? (
-        <span className="animate-floaty text-3xl sm:text-4xl font-extrabold" style=100>{symbol}</span>
-      ) : (
-        <span className="animate-floaty text-3xl sm:text-4xl">{el.emoji}</span>
-      )}
-      <span className="text-xs font-medium">{el.name}</span>
-      {el.formula && <span className="font-mono text-[10px] text-muted">{el.formula}</span>}
-    </div>
-  )
-}
+type Particle = { id: number; x: number; y: number; color: string; size: number; delay: number }
 
 function ParticleBurst({ particles }: { particles: Particle[] }) {
   if (!particles.length) return null
   return (
-    <div className="pointer-events-none fixed inset-0 z-[100]">
+    <div className="pointer-events-none fixed inset-0 z-[80]">
       {particles.map((p) => (
         <div
           key={p.id}
@@ -116,19 +45,159 @@ function ParticleBurst({ particles }: { particles: Particle[] }) {
             backgroundColor: p.color,
             animationDelay: `${p.delay}s`,
             left: '50%',
-            top: '50%',
-            marginLeft: `-${p.size / 2}px`,
-            marginTop: `-${p.size / 2}px`,
-          } as React.CSSProperties}
+            top: '42%',
+          } as CSSProperties}
         />
       ))}
     </div>
   )
 }
 
+function LabStatus({ discoveries, stats }: { discoveries: Discovery[]; stats: Stats }) {
+  const xp = totalXpFromDiscoveries(discoveries)
+  const progress = levelProgress(xp)
+  const rank = researchRank(progress.level, discoveries.length)
+  const rep = labReputation(discoveries, stats)
+  return (
+    <section className="lab-status" aria-label="Lab status">
+      <div>
+        <p className="lab-eyebrow">BYAS Lab OS</p>
+        <h1>Bring Your Alchemy Skill</h1>
+        <p className="text-sm text-slate-400">{rank} · Level {progress.level}</p>
+      </div>
+      <div className="lab-status-grid">
+        <div className="lab-metric"><span>{discoveries.length}/{MAX_COLLECTION}</span><small>Discovery Index</small></div>
+        <div className="lab-metric"><span>{stats.currentStreak || 0}d</span><small>Active Streak</small></div>
+        <div className="lab-metric"><span>{rep}</span><small>Lab Reputation</small></div>
+      </div>
+      <div className="lab-level">
+        <div className="flex items-center justify-between text-[11px] font-bold uppercase tracking-[0.18em] text-slate-400">
+          <span>Research XP</span><span>{progress.into}/{progress.span}</span>
+        </div>
+        <div className="lab-progress"><div style={{ width: `${progress.pct}%` }} /></div>
+      </div>
+    </section>
+  )
+}
+
+function SpecimenTile({ element, selected, onSelect }: { element: Element; selected: boolean; onSelect: () => void }) {
+  const group: ElementGroup = element.group ?? 'unknown'
+  const colors = GROUP_COLORS[group]
+  const symbol = element.id.length <= 3 ? element.id : element.emoji
+  return (
+    <button
+      type="button"
+      aria-pressed={selected}
+      onClick={onSelect}
+      className={`specimen-tile ${selected ? 'is-selected' : ''}`}
+      style={{
+        '--specimen-glow': colors.ring,
+        '--specimen-border': selected ? colors.glow : 'rgba(255,255,255,0.12)',
+      } as CSSProperties}
+    >
+      <span className="specimen-number">{element.atomicNumber ?? '∞'}</span>
+      <span className="specimen-symbol">{symbol}</span>
+      <span className="specimen-name">{element.name}</span>
+      <span className="specimen-group">{group.replaceAll('-', ' ')}</span>
+    </button>
+  )
+}
+
+function ChamberSlot({ element, label }: { element?: Element; label: string }) {
+  if (!element) {
+    return <div className="chamber-slot empty"><span>{label}</span></div>
+  }
+  const group: ElementGroup = element.group ?? 'unknown'
+  const colors = GROUP_COLORS[group]
+  const symbol = element.id.length <= 3 ? element.id : element.emoji
+  return (
+    <div className="chamber-slot filled" style={{ '--slot-glow': colors.ring } as CSSProperties}>
+      <small>{element.atomicNumber ?? '∞'}</small>
+      <strong>{symbol}</strong>
+      <span>{element.name}</span>
+    </div>
+  )
+}
+
+function ReactionChamber({ selected, state, onRun, onClear }: { selected: Element[]; state: ReactorState; onRun: () => void; onClear: () => void }) {
+  const ready = selected.length === 2 && state !== 'reacting'
+  const status = state === 'reacting' ? 'Reaction in progress' : ready ? 'Ready to run experiment' : 'Insert two specimens'
+  return (
+    <section className={`reaction-chamber state-${state}`} aria-live="polite">
+      <div className="chamber-bg" />
+      <div className="chamber-orbit orbit-one" />
+      <div className="chamber-orbit orbit-two" />
+      <div className="chamber-core">
+        <div className="chamber-slots">
+          <ChamberSlot element={selected[0]} label="Specimen A" />
+          <div className="chamber-plus">+</div>
+          <ChamberSlot element={selected[1]} label="Specimen B" />
+        </div>
+        <p className="mt-5 text-xs font-black uppercase tracking-[0.28em] text-cyan-100/60">Reaction Chamber</p>
+        <h2>{status}</h2>
+        <div className="mt-5 flex gap-2">
+          <button type="button" onClick={onRun} disabled={!ready} className="lab-button-primary min-w-44 disabled:cursor-not-allowed disabled:opacity-40">
+            {state === 'reacting' ? 'Synthesizing…' : 'Run Experiment'}
+          </button>
+          {selected.length ? <button type="button" onClick={onClear} className="lab-button">Clear</button> : null}
+        </div>
+      </div>
+    </section>
+  )
+}
+
+function DailyResearchPanel({ discoveries }: { discoveries: Discovery[] }) {
+  const oxygenCount = discoveries.filter((d) => `${d.formula ?? ''} ${d.result}`.toLowerCase().includes('o')).length
+  const progress = Math.min(3, oxygenCount)
+  return (
+    <aside className="lab-panel">
+      <div className="flex items-center justify-between gap-3">
+        <div><p className="lab-eyebrow">Daily Research</p><h3>Find 3 Oxygen compounds</h3></div>
+        <span className="rounded-full border border-cyan-300/20 bg-cyan-300/10 px-3 py-1 text-xs font-black text-cyan-100">{progress}/3</span>
+      </div>
+      <div className="lab-progress mt-4"><div style={{ width: `${(progress / 3) * 100}%` }} /></div>
+      <p className="mt-3 text-sm text-slate-400">Reward: +80 XP · 1 Hint. Petunjuk hari ini: cari senyawa yang dekat dengan air, udara, atau oksidasi.</p>
+    </aside>
+  )
+}
+
+function ResearchLog({ discoveries }: { discoveries: Discovery[] }) {
+  const recent = discoveries.slice(-4).reverse()
+  return (
+    <aside className="lab-panel">
+      <p className="lab-eyebrow">Latest Research Log</p>
+      <div className="mt-3 space-y-2">
+        {recent.length ? recent.map((d) => (
+          <div key={`${d.result}-${d.discoveredAt}`} className="research-log-row">
+            <span>{d.emoji}</span>
+            <div className="min-w-0 flex-1"><strong>{d.result}</strong><small>{d.formula ?? 'No formula'} · {RARITY_LABEL[d.rarity]}</small></div>
+          </div>
+        )) : <p className="text-sm text-slate-400">Belum ada discovery. Jalankan eksperimen pertama.</p>}
+      </div>
+    </aside>
+  )
+}
+
+function MasteryPanel({ discoveries }: { discoveries: Discovery[] }) {
+  const top = masteryBreakdown(discoveries).sort((a, b) => b.count - a.count).slice(0, 4)
+  return (
+    <aside className="lab-panel">
+      <p className="lab-eyebrow">Chemistry Mastery</p>
+      <div className="mt-3 space-y-3">
+        {top.map((m) => (
+          <div key={m.category}>
+            <div className="mb-1 flex items-center justify-between text-xs"><span>{MASTERY_LABEL[m.category]}</span><span className="text-slate-400">{m.count}</span></div>
+            <div className="lab-progress"><div style={{ width: `${m.pct}%` }} /></div>
+          </div>
+        ))}
+      </div>
+    </aside>
+  )
+}
+
 export default function Home() {
   const { user } = useAuth()
-  const { t, lang } = useI18n()
+  const { lang } = useI18n()
   const { theme, toggle: toggleTheme } = useTheme()
 
   const [discoveries, setDiscoveries] = useState<Discovery[]>([])
@@ -142,13 +211,12 @@ export default function Home() {
   const [showKey, setShowKey] = useState(false)
   const [showAuth, setShowAuth] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
-  const [reactionState, setReactionState] = useState<'idle' | 'success' | 'fail'>('idle')
+  const [reactorState, setReactorState] = useState<ReactorState>('idle')
   const [particles, setParticles] = useState<Particle[]>([])
-  const [flashColor, setFlashColor] = useState<string>('')
 
   useEffect(() => {
     setDiscoveries(loadDiscoveries())
-    setStats(loadStats())
+    setStats({ ...DEFAULT_STATS, ...loadStats() })
     try { const k = localStorage.getItem(MIMO_KEY); if (k) setApiKey(k) } catch {}
     initSound()
   }, [])
@@ -157,68 +225,38 @@ export default function Home() {
     if (!user) return
     let cancelled = false
     syncDiscoveries(user.id).then((merged) => { if (!cancelled) setDiscoveries(merged) })
-    syncStats(user.id).then((s) => { if (!cancelled) setStats(s) })
+    syncStats(user.id).then((s) => { if (!cancelled) setStats({ ...DEFAULT_STATS, ...s }) })
     return () => { cancelled = true }
   }, [user])
 
-  const totalXp = useMemo(() => totalXpFromDiscoveries(discoveries), [discoveries])
+  useEffect(() => {
+    if (loading) setReactorState('reacting')
+    else setReactorState(selected.length === 2 ? 'ready' : 'idle')
+  }, [loading, selected.length])
 
   const inventory: Element[] = useMemo(() => {
     const map = new Map<string, Element>()
-    for (const s of buildStarters(lang)) map.set(s.id, s)
+    for (const s of buildStarters(lang)) map.set(s.id, { ...s, rarity: 'common', category: 'gases' })
     for (const d of discoveries) {
-      if (!map.has(d.result)) {
-        map.set(d.result, { id: d.result, name: d.result, emoji: d.emoji, formula: d.formula ?? undefined })
-      }
+      if (!map.has(d.result)) map.set(d.result, { id: d.result, name: d.result, emoji: d.emoji, formula: d.formula ?? undefined, rarity: d.rarity, category: d.category })
     }
     return Array.from(map.values())
   }, [lang, discoveries])
 
-  const selEls = useMemo(
-    () => selected.map((id) => inventory.find((e) => e.id === id)).filter(Boolean) as Element[],
-    [selected, inventory],
-  )
+  const selEls = useMemo(() => selected.map((id) => inventory.find((e) => e.id === id)).filter(Boolean) as Element[], [selected, inventory])
 
-  const spawnParticles = useCallback((success: boolean) => {
-    const palette = success
-      ? ['#38bdf8','#818cf8','#a78bfa','#f472b6','#fbbf24','#34d399','#fb923c','#e879f9']
-      : ['#ef4444','#f87171','#fca5a5','#dc2626']
-    const count = success ? 34 : 12
-    const spread = success ? 280 : 120
-    const arr: Particle[] = Array.from({ length: count }, (_, i) => ({
-      id: i,
-      x: (Math.random() - 0.5) * spread,
-      y: (Math.random() - 0.5) * spread - 20,
-      color: palette[i % palette.length],
-      size: success ? 3 + Math.random() * 12 : 3 + Math.random() * 8,
-      delay: Math.random() * 0.35,
-    }))
+  const spawnParticles = useCallback((success: boolean, rarity: keyof typeof RARITY_GLOW = 'rare') => {
+    const palette = success ? ['#38bdf8', '#818cf8', '#a78bfa', '#f472b6', '#fbbf24', '#34d399'] : ['#fb7185', '#f97316', '#fca5a5']
+    const count = success ? 42 : 14
+    const spread = success ? 320 : 120
+    const arr = Array.from({ length: count }, (_, i) => ({ id: i, x: (Math.random() - 0.5) * spread, y: (Math.random() - 0.5) * spread - 40, color: palette[i % palette.length], size: 4 + Math.random() * (success ? 12 : 7), delay: Math.random() * 0.22 }))
     setParticles(arr)
-    setTimeout(() => setParticles([]), 1600)
+    setTimeout(() => setParticles([]), 1500)
   }, [])
-
-  const triggerSuccess = useCallback(() => {
-    setReactionState('success')
-    setFlashColor('rgba(56,189,248,0.18)')
-    spawnParticles(true)
-    playReactionBurst()
-    setTimeout(() => { setReactionState('idle'); setFlashColor('') }, 1400)
-  }, [spawnParticles])
-
-  const triggerFail = useCallback(() => {
-    setReactionState('fail')
-    setFlashColor('rgba(239,68,68,0.12)')
-    spawnParticles(false)
-    setTimeout(() => { setReactionState('idle'); setFlashColor('') }, 700)
-  }, [spawnParticles])
 
   function toggle(id: string) {
     playPop()
-    setSelected((prev) => {
-      if (prev.includes(id)) return prev.filter((x) => x !== id)
-      if (prev.length >= 2) return [prev[1], id]
-      return [...prev, id]
-    })
+    setSelected((prev) => prev.includes(id) ? prev.filter((x) => x !== id) : prev.length >= 2 ? [prev[1], id] : [...prev, id])
   }
 
   function showToast(text: string) { setMsg(text); setTimeout(() => setMsg(null), 2600) }
@@ -235,14 +273,14 @@ export default function Home() {
   }
 
   function checkAchievements(ds: Discovery[], st: Stats) {
-    const level = levelFromXp(totalXpFromDiscoveries(ds))
+    const level = levelProgress(totalXpFromDiscoveries(ds)).level
     const unlocked = computeUnlocked(ds, st, level)
     const seen = loadSeen()
     const fresh = Array.from(unlocked).filter((id) => !seen.has(id))
     if (!fresh.length) return
     const ach = ACHIEVEMENTS.find((a) => a.id === fresh[0])
     if (ach) {
-      setAchToast({ emoji: ach.emoji, title: t('ach.' + ach.id + '.title'), label: t('ach.unlocked') })
+      setAchToast({ emoji: ach.emoji, title: ach.title, label: 'Achievement Unlocked' })
       playUnlock()
       setTimeout(() => setAchToast(null), 3600)
     }
@@ -261,10 +299,12 @@ export default function Home() {
       if (apiKey) headers['x-mimo-key'] = apiKey
       const res = await fetch('/api/combine', { method: 'POST', headers, body: JSON.stringify({ aId: a.id, bId: b.id, aName: a.name, bName: b.name, lang }) })
       const data = await res.json()
-      if (!res.ok || data.error) { playError(); triggerFail(); showToast(t('err.' + (data?.error ?? 'combine'))); return }
+      if (!res.ok || data.error) { playError(); setReactorState('failed'); spawnParticles(false); showToast('Experiment failed: ' + (data?.error ?? 'combine')); return }
       const result = data as CombineResult
-      if (!result.reacted) { playError(); triggerFail(); showToast(t('combine.noReaction', { a: a.name, b: b.name })); setSelected([]); return }
-      triggerSuccess()
+      if (!result.reacted) { playError(); setReactorState('failed'); spawnParticles(false); showToast('No stable reaction detected.'); setSelected([]); return }
+      setReactorState('success')
+      spawnParticles(true, result.rarity)
+      playReactionBurst()
       const disc: Discovery = { ...result, discoveredAt: Date.now() }
       const isNew = saveDiscovery(disc)
       let nextList = discoveries
@@ -272,81 +312,66 @@ export default function Home() {
         nextList = [...discoveries, disc]
         setDiscoveries(nextList)
         playSuccess()
-        if (user) { pushCloudDiscovery(user.id, disc).catch(() => {}); pushTotalXp(user.id, totalXpFromDiscoveries(loadDiscoveries())).catch(() => {}) }
-      } else { playPop() }
+        if (user) { pushCloudDiscovery(user.id, disc).catch(() => {}); pushTotalXp(user.id, totalXpFromDiscoveries(nextList)).catch(() => {}) }
+      } else playPop()
       const ns = recordPlay(stats)
-      if (ns !== stats) { setStats(ns); saveStats(ns); if (user) pushStats(user.id, ns, totalXpFromDiscoveries(loadDiscoveries())).catch(() => {}) }
-      setDiscovery({ result, isNew, xpGain: isNew ? XP_BY_RARITY[result.rarity] ?? 10 : 0 })
+      setStats(ns)
+      saveStats(ns)
+      if (user) pushStats(user.id, ns, totalXpFromDiscoveries(nextList)).catch(() => {})
+      const xpGain = isNew ? xpForDiscovery(result) : 0
+      setDiscovery({ result, isNew, xpGain })
       checkAchievements(nextList, ns)
       setSelected([])
-    } catch { playError(); triggerFail(); showToast(t('err.network')) }
-    finally { setLoading(false) }
+    } catch {
+      playError(); setReactorState('failed'); spawnParticles(false); showToast('Network error. Lab connection unstable.')
+    } finally {
+      setLoading(false)
+      setTimeout(() => setReactorState('idle'), 900)
+    }
   }
 
-  const iconBtn = 'rounded-full card-2 p-2 text-base leading-none transition hover:opacity-80 active:scale-90'
-  const canCombine = selected.length === 2 && !loading
-
   return (
-    <main className="mx-auto flex min-h-screen max-w-2xl flex-col px-3 py-4 sm:px-4 sm:py-6">
-      {flashColor && <div className="reaction-overlay" style=101 />}
+    <main className="lab-shell">
+      <div className="lab-ambient" aria-hidden />
       <ParticleBurst particles={particles} />
-      <header className="flex items-center justify-between gap-2">
-        <div className="min-w-0">
-          <h1 className="flex items-center gap-2 text-xl font-extrabold tracking-tight sm:text-2xl">
-            <span className="text-2xl sm:text-3xl">⚗️</span>
-            <span className="bg-gradient-to-r from-sky-400 via-indigo-400 to-purple-400 bg-clip-text text-transparent">BYAS</span>
-          </h1>
-          <p className="text-[11px] text-muted">Bring Your Alchemy Skill</p>
-        </div>
-        <div className="flex flex-wrap items-center justify-end gap-1 sm:gap-1.5">
-          <Link href="/pokedex" className={iconBtn} title={t('nav.collection')}>📒</Link>
-          <Link href="/leaderboard" className={iconBtn} title={t('nav.rank')}>🏆</Link>
-          <button onClick={toggleTheme} className={iconBtn} title={t('settings.theme')}>{theme === 'dark' ? '☀️' : '🌙'}</button>
-          <button onClick={() => setShowSettings(true)} className={iconBtn} title={t('settings.title')}>⚙️</button>
-          <button onClick={() => setShowKey(true)} className={iconBtn} title={apiKey ? t('key.byok') : t('key.system')}>🔑</button>
-          {user ? (
-            <button onClick={signOut} title={user.email ?? undefined} className={iconBtn}>👤</button>
-          ) : (
-            <button onClick={() => setShowAuth(true)} className="rounded-full bg-gradient-to-r from-emerald-500 to-teal-500 px-3 py-2 text-xs font-semibold text-white shadow-lg shadow-emerald-500/20 transition hover:opacity-90 active:scale-95">{t('auth.login')}</button>
-          )}
-        </div>
+      <header className="lab-topbar">
+        <Link href="/pokedex" className="lab-nav-chip">📒 Archive</Link>
+        <Link href="/leaderboard" className="lab-nav-chip">🏆 Reputation</Link>
+        <button onClick={toggleTheme} className="lab-nav-chip" type="button">{theme === 'dark' ? '☀️' : '🌙'} Theme</button>
+        <button onClick={() => setShowSettings(true)} className="lab-nav-chip" type="button">⚙️</button>
+        <button onClick={() => setShowKey(true)} className="lab-nav-chip" type="button">🔑</button>
+        {user ? <button onClick={signOut} className="lab-nav-chip" type="button">👤</button> : <button onClick={() => setShowAuth(true)} className="lab-nav-chip lab-nav-primary" type="button">Login</button>}
       </header>
-      <StatsBar totalXp={totalXp} streak={stats.currentStreak} bestStreak={stats.bestStreak} />
-      <section className={`mt-4 grid grid-cols-[1fr_auto_1fr] items-center gap-2 rounded-2xl card p-4 transition-all duration-300 sm:gap-4 sm:p-5 ${reactionState === 'fail' ? 'shake-it' : ''}`}
-        style={reactionState === 'success' ? { boxShadow: '0 0 30px rgba(56,189,248,0.35), 0 0 70px rgba(56,189,248,0.12)' } : undefined}>
-        <CombineSlot el={selEls[0]} pick={t('slot.pick')} />
-        <div className="text-center"><span className="text-xl font-bold text-muted sm:text-2xl">+</span></div>
-        <CombineSlot el={selEls[1]} pick={t('slot.pick')} />
-      </section>
-      <button onClick={combine} disabled={!canCombine}
-        className={`mt-4 w-full rounded-xl py-3.5 text-base font-bold text-white transition-all duration-300 ${canCombine ? 'animate-pulse-glow bg-gradient-to-r from-sky-500 via-indigo-500 to-purple-500 shadow-lg shadow-indigo-500/25 active:scale-[0.97]' : 'cursor-not-allowed bg-slate-700/40 text-slate-400'}`}
-        style={canCombine ? { backgroundSize: '200% auto', backgroundImage: 'linear-gradient(to right, #0ea5e9, #6366f1, #a855f7)' } : undefined}>
-        {loading ? (
-          <span className="flex items-center justify-center gap-2"><span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />{t('combine.loading')}</span>
-        ) : (<span className="flex items-center justify-center gap-2"><span className="text-lg">⚗️</span> {t('combine.button')}</span>)}
-      </button>
-      <section className="mt-5">
-        <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-xs font-semibold uppercase tracking-wider text-muted">{t('nav.collection')} · {inventory.length}</h2>
-          {selected.length > 0 && <button onClick={() => setSelected([])} className="text-xs text-muted underline hover:text-sky-400">{selected.length} selected · clear</button>}
-        </div>
-        <div className="grid grid-cols-4 gap-2 sm:grid-cols-5 md:grid-cols-6">
-          {inventory.map((el, idx) => (
-            <div key={el.id} style={{ animationDelay: `${Math.min(idx * 35, 600)}ms` }}>
-              <ElementCard el={el} selected={selected.includes(el.id)} onClick={() => toggle(el.id)} />
+
+      <LabStatus discoveries={discoveries} stats={stats} />
+
+      <div className="lab-grid">
+        <div className="lab-main-stage">
+          <ReactionChamber selected={selEls} state={reactorState} onRun={combine} onClear={() => setSelected([])} />
+          <section className="specimen-dock" aria-label="Specimen dock">
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <div><p className="lab-eyebrow">Specimen Dock</p><h3>Choose two materials</h3></div>
+              {selected.length ? <button onClick={() => setSelected([])} className="text-xs font-bold text-cyan-200/70 underline" type="button">clear selection</button> : null}
             </div>
-          ))}
+            <div className="specimen-grid">
+              {inventory.map((el) => <SpecimenTile key={el.id} element={el} selected={selected.includes(el.id)} onSelect={() => toggle(el.id)} />)}
+            </div>
+          </section>
         </div>
-      </section>
-      {inventory.length <= 6 && discoveries.length === 0 && (
-        <div className="mt-3 text-center animate-fade-in"><p className="text-xs text-muted">✨ Pick two elements above and press Combine to discover new compounds!</p></div>
-      )}
+
+        <div className="lab-side-stage">
+          <DailyResearchPanel discoveries={discoveries} />
+          <ResearchLog discoveries={discoveries} />
+          <MasteryPanel discoveries={discoveries} />
+        </div>
+      </div>
+
       {discovery && <DiscoveryModal result={discovery.result} isNew={discovery.isNew} xpGain={discovery.xpGain} onClose={() => setDiscovery(null)} />}
       {showKey && <ApiKeyModal current={apiKey} onClose={() => setShowKey(false)} onSave={handleSaveKey} />}
       {showAuth && <AuthModal onClose={() => setShowAuth(false)} />}
       {showSettings && <SettingsModal onClose={() => setShowSettings(false)} />}
       {achToast && <AchievementToast emoji={achToast.emoji} title={achToast.title} label={achToast.label} />}
-      {msg && <div className="toast-enter fixed bottom-6 left-1/2 z-50 -translate-x-1/2 rounded-xl bg-slate-900/90 px-4 py-2.5 text-sm text-white shadow-xl backdrop-blur">{msg}</div>}
+      {msg && <div className="toast-enter fixed bottom-6 left-1/2 z-50 -translate-x-1/2 rounded-2xl border border-white/10 bg-slate-950/92 px-4 py-3 text-sm text-white shadow-2xl backdrop-blur">{msg}</div>}
     </main>
   )
 }
