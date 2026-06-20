@@ -2,6 +2,7 @@ import type { Discovery, MasteryCategory, Rarity, Stats } from './types'
 import { getSupabaseBrowser } from './supabaseBrowser'
 
 const COLS = 'result, formula, emoji, explanation, fun_fact, rarity, discovered_at, category, difficulty, xp, hint, ingredients'
+const STAT_COLS = 'current_streak, best_streak, last_played, display_name, total_xp, bonus_xp, coins, hint_tokens, lab_reputation, completed_daily_challenges, completed_weekly_quests, claimed_streak_rewards, solved_mysteries, mystery_hints_used, failed_experiments'
 const RARITIES: Rarity[] = ['common', 'uncommon', 'rare', 'epic', 'legendary', 'mythic']
 const CATEGORIES: MasteryCategory[] = ['organic', 'inorganic', 'metals', 'gases', 'biology', 'energy', 'industrial']
 
@@ -11,6 +12,10 @@ function safeRarity(value: unknown): Rarity {
 
 function safeCategory(value: unknown): MasteryCategory | undefined {
   return CATEGORIES.includes(value as MasteryCategory) ? (value as MasteryCategory) : undefined
+}
+
+function arr<T = unknown>(value: unknown): T[] {
+  return Array.isArray(value) ? (value as T[]) : []
 }
 
 function toRow(userId: string, d: Discovery) {
@@ -75,7 +80,7 @@ export async function pullStats(userId: string): Promise<Stats | null> {
   if (!sb) return null
   const { data, error } = await sb
     .from('player_stats')
-    .select('current_streak, best_streak, last_played, display_name, total_xp, hint_tokens, lab_reputation, completed_daily_challenges, failed_experiments')
+    .select(STAT_COLS)
     .eq('user_id', userId)
     .maybeSingle()
   if (error || !data) return null
@@ -85,15 +90,21 @@ export async function pullStats(userId: string): Promise<Stats | null> {
     lastPlayed: data.last_played ?? null,
     displayName: data.display_name ?? null,
     totalXp: data.total_xp ?? 0,
+    bonusXp: data.bonus_xp ?? 0,
+    coins: data.coins ?? 0,
     hintTokens: data.hint_tokens ?? 0,
     labReputation: data.lab_reputation ?? 0,
-    completedDailyChallenges: Array.isArray(data.completed_daily_challenges) ? data.completed_daily_challenges : [],
+    completedDailyChallenges: arr<string>(data.completed_daily_challenges),
+    completedWeeklyQuests: arr<string>(data.completed_weekly_quests),
+    claimedStreakRewards: arr<number>(data.claimed_streak_rewards),
+    solvedMysteries: arr<string>(data.solved_mysteries),
+    mysteryHintsUsed: arr<string>(data.mystery_hints_used),
     failedExperiments: data.failed_experiments ?? 0,
   }
 }
 
-// Push streak + total XP. Sengaja TIDAK menyentuh display_name biar tidak
-// menimpa username yang mungkin di-set dari device lain.
+// Push streak + total XP + retention state. Sengaja TIDAK menyentuh display_name
+// biar tidak menimpa username yang mungkin di-set dari device lain.
 export async function pushStats(userId: string, s: Stats, totalXp: number): Promise<void> {
   const sb = getSupabaseBrowser()
   if (!sb) return
@@ -104,9 +115,15 @@ export async function pushStats(userId: string, s: Stats, totalXp: number): Prom
       best_streak: s.bestStreak,
       last_played: s.lastPlayed,
       total_xp: totalXp,
+      bonus_xp: s.bonusXp ?? 0,
+      coins: s.coins ?? 0,
       hint_tokens: s.hintTokens ?? 0,
       lab_reputation: s.labReputation ?? totalXp,
       completed_daily_challenges: s.completedDailyChallenges ?? [],
+      completed_weekly_quests: s.completedWeeklyQuests ?? [],
+      claimed_streak_rewards: s.claimedStreakRewards ?? [],
+      solved_mysteries: s.solvedMysteries ?? [],
+      mystery_hints_used: s.mysteryHintsUsed ?? [],
       failed_experiments: s.failedExperiments ?? 0,
       updated_at: new Date().toISOString(),
     },

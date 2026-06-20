@@ -61,27 +61,39 @@ create policy "own_discoveries" on user_discoveries
   using (auth.uid() = user_id)
   with check (auth.uid() = user_id);
 
--- Progres pemain: streak + total XP + username (buat leaderboard).
+-- Progres pemain: streak + total XP + username (buat leaderboard) + retention.
 create table if not exists player_stats (
   user_id uuid primary key references auth.users (id) on delete cascade,
   current_streak int default 0,
   best_streak int default 0,
   last_played date,
   total_xp int default 0,
+  bonus_xp int default 0,
+  coins int default 0,
   display_name text,
   hint_tokens int default 0,
   lab_reputation int default 0,
   completed_daily_challenges jsonb default '[]'::jsonb,
+  completed_weekly_quests jsonb default '[]'::jsonb,
+  claimed_streak_rewards jsonb default '[]'::jsonb,
+  solved_mysteries jsonb default '[]'::jsonb,
+  mystery_hints_used jsonb default '[]'::jsonb,
   failed_experiments int default 0,
   updated_at timestamptz default now()
 );
 
 -- Untuk deployment lama: tambahkan kolom baru bila belum ada.
 alter table player_stats add column if not exists total_xp int default 0;
+alter table player_stats add column if not exists bonus_xp int default 0;
+alter table player_stats add column if not exists coins int default 0;
 alter table player_stats add column if not exists display_name text;
 alter table player_stats add column if not exists hint_tokens int default 0;
 alter table player_stats add column if not exists lab_reputation int default 0;
 alter table player_stats add column if not exists completed_daily_challenges jsonb default '[]'::jsonb;
+alter table player_stats add column if not exists completed_weekly_quests jsonb default '[]'::jsonb;
+alter table player_stats add column if not exists claimed_streak_rewards jsonb default '[]'::jsonb;
+alter table player_stats add column if not exists solved_mysteries jsonb default '[]'::jsonb;
+alter table player_stats add column if not exists mystery_hints_used jsonb default '[]'::jsonb;
 alter table player_stats add column if not exists failed_experiments int default 0;
 
 alter table player_stats enable row level security;
