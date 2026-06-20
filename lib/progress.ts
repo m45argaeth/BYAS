@@ -1,22 +1,22 @@
-import type { Discovery, Rarity, Stats } from './types'
+import type { Discovery, Stats } from './types'
 
-// XP yang didapat per penemuan, berdasarkan rarity.
-export const XP_BY_RARITY: Record<Rarity, number> = {
+export const XP_BY_RARITY: Record<string, number> = {
   common: 10,
   uncommon: 25,
   rare: 60,
   legendary: 150,
 }
 
-// Total XP diturunkan dari koleksi -> selalu konsisten walau habis sync.
-export function totalXpFromDiscoveries(ds: Discovery[]): number {
-  return ds.reduce((sum, d) => sum + (XP_BY_RARITY[d.rarity] ?? 10), 0)
+export function xpForDiscovery(d: { rarity: string }): number {
+  return XP_BY_RARITY[d.rarity] ?? 10
 }
 
-// XP kumulatif yang dibutuhkan untuk MENCAPAI sebuah level (level mulai dari 1).
-// Kurva landai: increment antar level naik linear (100, 200, 300, ...).
+export function totalXpFromDiscoveries(discoveries: Discovery[]): number {
+  return discoveries.reduce((sum, d) => sum + (XP_BY_RARITY[d.rarity] ?? 10), 0)
+}
+
+// Cumulative XP needed to reach a level (level starts at 1). xpForLevel(L) = 50*(L-1)*L
 export function xpForLevel(level: number): number {
-  if (level <= 1) return 0
   return 50 * (level - 1) * level
 }
 
@@ -28,52 +28,42 @@ export function levelFromXp(xp: number): number {
 
 export interface LevelProgress {
   level: number
+  totalXp: number
   into: number
   span: number
   pct: number
-  totalXp: number
 }
 
 export function levelProgress(xp: number): LevelProgress {
   const level = levelFromXp(xp)
-  const cur = xpForLevel(level)
+  const base = xpForLevel(level)
   const next = xpForLevel(level + 1)
-  const into = xp - cur
-  const span = next - cur
-  return {
-    level,
-    into,
-    span,
-    pct: span > 0 ? Math.min(100, Math.round((into / span) * 100)) : 100,
-    totalXp: xp,
-  }
+  const span = Math.max(1, next - base)
+  const into = Math.max(0, xp - base)
+  const pct = Math.min(100, Math.round((into / span) * 100))
+  return { level, totalXp: xp, into, span, pct }
 }
 
-// ---- Streak ----
-
-export function todayStr(d = new Date()): string {
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(
-    d.getDate(),
-  ).padStart(2, '0')}`
+export function todayStr(): string {
+  const d = new Date()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return d.getFullYear() + '-' + m + '-' + day
 }
 
-function dayDiff(a: string, b: string): number {
-  const da = new Date(a + 'T00:00:00')
-  const db = new Date(b + 'T00:00:00')
-  return Math.round((db.getTime() - da.getTime()) / 86_400_000)
-}
-
-// Catat bahwa pemain main hari ini. Streak naik kalau main berurutan,
-// reset ke 1 kalau bolong. Return objek SAMA kalau sudah main hari ini.
-export function recordPlay(stats: Stats, today = todayStr()): Stats {
+// Update streak for a play happening today. Returns a new Stats object.
+export function recordPlay(stats: Stats): Stats {
+  const today = todayStr()
   if (stats.lastPlayed === today) return stats
-  let currentStreak = 1
-  if (stats.lastPlayed && dayDiff(stats.lastPlayed, today) === 1) {
-    currentStreak = stats.currentStreak + 1
+  let current = 1
+  if (stats.lastPlayed) {
+    const prev = new Date(stats.lastPlayed + 'T00:00:00')
+    const now = new Date(today + 'T00:00:00')
+    const diffDays = Math.round((now.getTime() - prev.getTime()) / 86400000)
+    if (diffDays === 1) current = (stats.currentStreak || 0) + 1
+    else if (diffDays <= 0) current = stats.currentStreak || 1
+    else current = 1
   }
-  return {
-    currentStreak,
-    bestStreak: Math.max(stats.bestStreak, currentStreak),
-    lastPlayed: today,
-  }
+  const best = Math.max(stats.bestStreak ?? 0, current)
+  return { ...stats, currentStreak: current, bestStreak: best, lastPlayed: today }
 }
