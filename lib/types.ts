@@ -22,6 +22,15 @@ export type ElementGroup =
   | 'noble-gas'
   | 'unknown'
 
+// Language-dependent text for a discovery. Stored for every supported language
+// so the UI can switch languages live without re-generating.
+export interface LocalizedText {
+  result: string
+  explanation: string
+  fun_fact: string
+  hint?: string
+}
+
 export interface CombineResult {
   result: string
   formula: string | null
@@ -35,6 +44,9 @@ export interface CombineResult {
   hint?: string
   ingredients?: string[]
   xp?: number
+  // Per-language text. Language-independent fields (emoji, formula, rarity,
+  // category, difficulty) live at the top level and are shared across languages.
+  i18n?: Partial<Record<Lang, LocalizedText>>
 }
 
 export interface Element {

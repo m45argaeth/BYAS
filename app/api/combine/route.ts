@@ -1,17 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import OpenAI from 'openai'
-import { makeInputKey, getCachedCombo, saveCombo } from '@/lib/cache'
+import { makeInputKey, getCachedCombo, saveComboLang } from '@/lib/cache'
 import { resolveKeys, markRateLimited } from '@/lib/mimoKeys'
-import type { CombineResult, MasteryCategory, Rarity } from '@/lib/types'
-import { XP_BY_RARITY } from '@/lib/progress'
+import type { CombineResult, Lang, LocalizedText, MasteryCategory, Rarity } from '@/lib/types'
 
 export const runtime = 'nodejs'
 
-const LANG_NAME: Record<string, string> = {
-  id: 'Bahasa Indonesia',
-  en: 'English',
-  cn: 'Simplified Chinese (简体中文)',
-}
+const LANGS: Lang[] = ['id', 'en', 'cn']
 
 const RARITIES: Rarity[] = ['common', 'uncommon', 'rare', 'epic', 'legendary', 'mythic']
 const CATEGORIES: MasteryCategory[] = ['organic', 'inorganic', 'metals', 'gases', 'biology', 'energy', 'industrial']
@@ -24,6 +19,20 @@ function safeCategory(value: unknown): MasteryCategory {
   return CATEGORIES.includes(value as MasteryCategory) ? (value as MasteryCategory) : 'inorganic'
 }
 
+function str(v: unknown, fb = ''): string {
+  return v === undefined || v === null ? fb : String(v)
+}
+
+function pickText(obj: unknown): LocalizedText {
+  const o = (obj && typeof obj === 'object' ? obj : {}) as Record<string, unknown>
+  return {
+    result: str(o.result),
+    explanation: str(o.explanation),
+    fun_fact: str(o.fun_fact),
+    hint: o.hint ? String(o.hint) : undefined,
+  }
+}
+
 export async function POST(req: NextRequest) {
   let body: Record<string, unknown> = {}
   try {
@@ -34,12 +43,10 @@ export async function POST(req: NextRequest) {
   const bId = String(body.bId ?? body.b ?? '').trim()
   const aName = String(body.aName ?? aId).trim()
   const bName = String(body.bName ?? bId).trim()
-  const langRaw = String(body.lang ?? 'id')
-  const lang = (['id', 'en', 'cn'].includes(langRaw) ? langRaw : 'id') as 'id' | 'en' | 'cn'
   if (!aId || !bId) return NextResponse.json({ error: 'bad_request' }, { status: 400 })
 
-  const inputKey = makeInputKey([aId, bId]) + ':' + lang
-  const cached = await getCachedCombo(inputKey)
+  const baseKey = makeInputKey([aId, bId])
+  const cached = await getCachedCombo(baseKey)
   if (cached) return NextResponse.json(cached)
 
   const playerKey = req.headers.get('x-mimo-key') || undefined
@@ -49,16 +56,17 @@ export async function POST(req: NextRequest) {
   }
 
   const schema = `{
-  "result": "short name of the resulting element, compound, material, or discovery",
-  "formula": "chemical formula, or null if not applicable",
   "emoji": "a single emoji that represents the result",
-  "explanation": "1-2 sentence explanation; clearly say if this is a real reaction or a game-inspired combination",
-  "fun_fact": "one short educational chemistry fact",
+  "formula": "chemical formula, or null if not applicable",
   "rarity": "common | uncommon | rare | epic | legendary | mythic",
   "category": "organic | inorganic | metals | gases | biology | energy | industrial",
   "difficulty": 1,
-  "hint": "a non-spoiler hint for finding this discovery later",
-  "reacted": true or false
+  "reacted": true,
+  "text": {
+    "id": { "result": "...", "explanation": "...", "fun_fact": "...", "hint": "..." },
+    "en": { "result": "...", "explanation": "...", "fun_fact": "...", "hint": "..." },
+    "cn": { "result": "...", "explanation": "...", "fun_fact": "...", "hint": "..." }
+  }
 }`
 
   const prompt =
@@ -72,8 +80,9 @@ export async function POST(req: NextRequest) {
     'Respond ONLY with a JSON object of this exact shape:\n' +
     schema + '\n' +
     'difficulty must be an integer from 1 to 5. Mythic should be very rare.\n' +
-    'If they do not react or it makes no sense, set "reacted" to false and still give a short explanation.\n' +
-    'Write result, explanation, fun_fact, and hint in ' + LANG_NAME[lang] + '.'
+    'emoji, formula, rarity, category, difficulty and reacted are language-independent and must be identical regardless of language.\n' +
+    'Inside "text", write result, explanation, fun_fact and hint THREE times: "id" in Bahasa Indonesia, "en" in English, "cn" in Simplified Chinese (简体中文). Keep the meaning identical across all three languages; only the language differs.\n' +
+    'If they do not react or it makes no sense, set "reacted" to false and still give a short explanation in all three languages.'
 
   let lastStatus = 0
   for (const key of keys) {
@@ -92,21 +101,57 @@ export async function POST(req: NextRequest) {
       const text = completion.choices[0]?.message?.content ?? '{}'
       const parsed = JSON.parse(text)
       const rarity = safeRarity(parsed.rarity)
+      const category = safeCategory(parsed.category)
       const difficulty = Math.max(1, Math.min(5, Number(parsed.difficulty ?? 1)))
-      const result: CombineResult = {
-        result: String(parsed.result ?? 'Unknown Discovery'),
-        formula: parsed.formula ? String(parsed.formula) : null,
-        emoji: String(parsed.emoji ?? '✨'),
-        explanation: String(parsed.explanation ?? ''),
-        fun_fact: String(parsed.fun_fact ?? ''),
-        rarity,
-        category: safeCategory(parsed.category),
-        difficulty,
-        hint: parsed.hint ? String(parsed.hint) : undefined,
-        ingredients: [aId, bId],
-        reacted: parsed.reacted !== false,
+      const reacted = parsed.reacted !== false
+      const formula = parsed.formula ? String(parsed.formula) : null
+      const emoji = String(parsed.emoji ?? '✨')
+
+      const raw = (parsed.text && typeof parsed.text === 'object' ? parsed.text : {}) as Record<string, unknown>
+      const texts: Record<Lang, LocalizedText> = {
+        id: pickText(raw.id),
+        en: pickText(raw.en),
+        cn: pickText(raw.cn),
       }
-      if (result.reacted) await saveCombo(inputKey, { ...result, xp: XP_BY_RARITY[rarity] }).catch(() => {})
+      // Back-fill any missing language so the client always has all three.
+      const fallback = texts.en.result ? texts.en : texts.id.result ? texts.id : texts.cn
+      for (const l of LANGS) {
+        if (!texts[l].result) texts[l] = { ...fallback }
+      }
+      const canonical = texts.en.result ? texts.en : fallback
+
+      const result: CombineResult = {
+        result: canonical.result || 'Unknown Discovery',
+        formula,
+        emoji,
+        explanation: canonical.explanation,
+        fun_fact: canonical.fun_fact,
+        rarity,
+        category,
+        difficulty,
+        hint: canonical.hint,
+        ingredients: [aId, bId],
+        reacted,
+        i18n: texts,
+      }
+
+      if (reacted) {
+        for (const l of LANGS) {
+          await saveComboLang(baseKey, l, {
+            result: texts[l].result,
+            formula,
+            emoji,
+            explanation: texts[l].explanation,
+            fun_fact: texts[l].fun_fact,
+            rarity,
+            reacted,
+            category,
+            difficulty,
+            hint: texts[l].hint,
+            ingredients: [aId, bId],
+          }).catch(() => {})
+        }
+      }
       return NextResponse.json(result)
     } catch (e: unknown) {
       const err = e as { status?: number; statusCode?: number }

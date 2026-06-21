@@ -1,7 +1,8 @@
-import type { Discovery, MasteryCategory, Rarity, Stats } from './types'
+import type { Discovery, Lang, LocalizedText, MasteryCategory, Rarity } from './types'
 import { getSupabaseBrowser } from './supabaseBrowser'
 
-const COLS = 'result, formula, emoji, explanation, fun_fact, rarity, discovered_at, category, difficulty, xp, hint, ingredients'
+const COLS_BASE = 'result, formula, emoji, explanation, fun_fact, rarity, discovered_at, category, difficulty, xp, hint, ingredients'
+const COLS = COLS_BASE + ', i18n'
 const STAT_COLS = 'current_streak, best_streak, last_played, display_name, total_xp, bonus_xp, coins, hint_tokens, lab_reputation, completed_daily_challenges, completed_weekly_quests, claimed_streak_rewards, solved_mysteries, mystery_hints_used, failed_experiments'
 const RARITIES: Rarity[] = ['common', 'uncommon', 'rare', 'epic', 'legendary', 'mythic']
 const CATEGORIES: MasteryCategory[] = ['organic', 'inorganic', 'metals', 'gases', 'biology', 'energy', 'industrial']
@@ -32,14 +33,32 @@ function toRow(userId: string, d: Discovery) {
     xp: d.xp,
     hint: d.hint,
     ingredients: d.ingredients ?? [],
+    i18n: d.i18n ?? null,
     discovered_at: new Date(d.discoveredAt).toISOString(),
+  }
+}
+
+function stripI18n(row: ReturnType<typeof toRow>) {
+  const { i18n, ...rest } = row
+  return rest
+}
+
+// Upsert that tolerates databases where the optional `i18n` column hasn't been
+// added yet: it retries once without that field.
+async function upsertRows(sb: ReturnType<typeof getSupabaseBrowser>, rows: ReturnType<typeof toRow>[]) {
+  if (!sb) return
+  const res = await sb.from('user_discoveries').upsert(rows, { onConflict: 'user_id,result' })
+  if (res.error) {
+    await sb.from('user_discoveries').upsert(rows.map(stripI18n), { onConflict: 'user_id,result' })
   }
 }
 
 export async function pullCloudDiscoveries(userId: string): Promise<Discovery[]> {
   const sb = getSupabaseBrowser()
   if (!sb) return []
-  const { data, error } = await sb.from('user_discoveries').select(COLS).eq('user_id', userId)
+  let res = await sb.from('user_discoveries').select(COLS).eq('user_id', userId)
+  if (res.error) res = await sb.from('user_discoveries').select(COLS_BASE).eq('user_id', userId)
+  const { data, error } = res
   if (error || !data) return []
   return data.map((r: any) => ({
     result: r.result,
@@ -53,6 +72,7 @@ export async function pullCloudDiscoveries(userId: string): Promise<Discovery[]>
     xp: r.xp ?? undefined,
     hint: r.hint ?? undefined,
     ingredients: Array.isArray(r.ingredients) ? r.ingredients : undefined,
+    i18n: (r.i18n as Partial<Record<Lang, LocalizedText>>) ?? undefined,
     reacted: true,
     discoveredAt: r.discovered_at ? new Date(r.discovered_at).getTime() : Date.now(),
   }))
@@ -61,16 +81,13 @@ export async function pullCloudDiscoveries(userId: string): Promise<Discovery[]>
 export async function pushCloudDiscovery(userId: string, d: Discovery): Promise<void> {
   const sb = getSupabaseBrowser()
   if (!sb) return
-  await sb.from('user_discoveries').upsert(toRow(userId, d), { onConflict: 'user_id,result' })
+  await upsertRows(sb, [toRow(userId, d)])
 }
 
 export async function pushManyCloudDiscoveries(userId: string, ds: Discovery[]): Promise<void> {
   const sb = getSupabaseBrowser()
   if (!sb || !ds.length) return
-  await sb.from('user_discoveries').upsert(
-    ds.map((d) => toRow(userId, d)),
-    { onConflict: 'user_id,result' },
-  )
+  await upsertRows(sb, ds.map((d) => toRow(userId, d)))
 }
 
 // ---- Stats ----
