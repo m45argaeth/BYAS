@@ -9,14 +9,20 @@ export const runtime = 'nodejs'
 const LANGS: Lang[] = ['id', 'en', 'cn']
 
 const RARITIES: Rarity[] = ['common', 'uncommon', 'rare', 'epic', 'legendary', 'mythic']
-const CATEGORIES: MasteryCategory[] = ['organic', 'inorganic', 'metals', 'gases', 'biology', 'energy', 'industrial']
+const CATEGORIES: MasteryCategory[] = ['chemistry', 'materials', 'geology', 'biology', 'knowledge', 'technology', 'civilization', 'space']
 
 function safeRarity(value: unknown): Rarity {
   return RARITIES.includes(value as Rarity) ? (value as Rarity) : 'common'
 }
 
 function safeCategory(value: unknown): MasteryCategory {
-  return CATEGORIES.includes(value as MasteryCategory) ? (value as MasteryCategory) : 'inorganic'
+  return CATEGORIES.includes(value as MasteryCategory) ? (value as MasteryCategory) : 'chemistry'
+}
+
+function safeTier(value: unknown): number {
+  const n = Number(value)
+  if (!Number.isFinite(n)) return 1
+  return Math.max(1, Math.min(15, Math.round(n)))
 }
 
 function str(v: unknown, fb = ''): string {
@@ -30,6 +36,7 @@ function pickText(obj: unknown): LocalizedText {
     explanation: str(o.explanation),
     fun_fact: str(o.fun_fact),
     hint: o.hint ? String(o.hint) : undefined,
+    progression: o.progression ? String(o.progression) : undefined,
   }
 }
 
@@ -55,34 +62,48 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: playerKey ? 'invalid_player_key' : 'no_key' }, { status: 400 })
   }
 
+  const selfCombo = aId.trim().toLowerCase() === bId.trim().toLowerCase()
+
   const schema = `{
   "emoji": "a single emoji that represents the result",
-  "formula": "chemical formula, or null if not applicable",
+  "formula": "chemical formula if it is a real molecule/compound, otherwise null",
   "rarity": "common | uncommon | rare | epic | legendary | mythic",
-  "category": "organic | inorganic | metals | gases | biology | energy | industrial",
+  "category": "chemistry | materials | geology | biology | knowledge | technology | civilization | space",
+  "tier": 1,
   "difficulty": 1,
   "reacted": true,
   "text": {
-    "id": { "result": "...", "explanation": "...", "fun_fact": "...", "hint": "..." },
-    "en": { "result": "...", "explanation": "...", "fun_fact": "...", "hint": "..." },
-    "cn": { "result": "...", "explanation": "...", "fun_fact": "...", "hint": "..." }
+    "id": { "result": "...", "explanation": "...", "progression": "...", "fun_fact": "...", "hint": "..." },
+    "en": { "result": "...", "explanation": "...", "progression": "...", "fun_fact": "...", "hint": "..." },
+    "cn": { "result": "...", "explanation": "...", "progression": "...", "fun_fact": "...", "hint": "..." }
   }
 }`
 
   const prompt =
-    'You are the chemistry engine for BYAS, a futuristic scientific discovery game.\n' +
-    'The game should feel like Little Alchemy, but educational and grounded in chemistry.\n' +
-    'Combine these two specimens:\n' +
+    'You are the core discovery engine for BYAS (Bring Your Alchemy Skill).\n' +
+    'Your purpose is NOT to simulate chemistry. Your purpose is to generate meaningful scientific discoveries that let players progress from 8 fundamental elements (H, O, C, N, Si, Fe, S, P) all the way to civilization and the space age.\n' +
+    'The game should feel like Little Alchemy, Infinite Craft, and a Scientific Discovery Simulator, while staying grounded in science whenever possible.\n\n' +
+    'CORE PHILOSOPHY: never ask "what is the most chemically accurate result?". Instead ask "what discovery best advances the player\'s understanding and progression?". The game is discovery-first, science-inspired, educational, and progression-focused. It is NOT a chemistry simulator, academic database, or compound encyclopedia.\n\n' +
+    'PRIORITY ORDER when picking a result: 1) Discovery value, 2) Progression value, 3) Educational value, 4) Scientific accuracy. Accuracy supports gameplay and must never create boring dead ends.\n\n' +
+    'Combine these two specimens (treat A+B exactly the same as B+A):\n' +
     '- ' + aName + ' (' + aId + ')\n' +
     '- ' + bName + ' (' + bId + ')\n\n' +
-    'Decide whether they realistically react, combine, form a known compound/material, or create a chemistry-inspired discovery.\n' +
-    'Never present fictional chemistry as guaranteed real science. If it is game-inspired, say so briefly in the explanation.\n' +
-    'Respond ONLY with a JSON object of this exact shape:\n' +
-    schema + '\n' +
-    'difficulty must be an integer from 1 to 5. Mythic should be very rare.\n' +
-    'emoji, formula, rarity, category, difficulty and reacted are language-independent and must be identical regardless of language.\n' +
-    'Inside "text", write result, explanation, fun_fact and hint THREE times: "id" in Bahasa Indonesia, "en" in English, "cn" in Simplified Chinese (简体中文). Keep the meaning identical across all three languages; only the language differs.\n' +
-    'If they do not react or it makes no sense, set "reacted" to false and still give a short explanation in all three languages.'
+    (selfCombo
+      ? 'SELF-COMBINATION: this is A + A. Self-combinations are valid and encouraged when they progress (e.g. H+H -> Hydrogen Gas, O+O -> Oxygen Gas, N+N -> Nitrogen Gas, Amino Acid+Amino Acid -> Peptide, Cell+Cell -> Tissue, Village+Village -> Town, Knowledge+Knowledge -> Science, Science+Science -> Research, Technology+Technology -> Advanced Technology, Rocket+Rocket -> Space Program). Only set reacted=false if doubling truly yields no meaningful progression.\n\n'
+      : '') +
+    'DISCOVERY CATEGORIES (pick the single best fit for "category"): chemistry (molecule, compound, acid, base, gas), materials (sand, glass, metal, alloy, ceramic, semiconductor, polymer), geology (rock, soil, mineral, volcano, mountain), biology (amino acid, protein, DNA, RNA, cell, tissue, organ, plant, animal, human), knowledge (observation, measurement, knowledge, science, mathematics, research), technology (tool, agriculture, writing, engineering, industry, electricity, electronics, computing, AI), civilization (settlement, village, town, city, government, trade, economy, nation), space (rocket, satellite, space station, fusion, colony, interplanetary travel, interstellar travel).\n\n' +
+    'PROGRESSION TIERS for "tier" (1-15): 1 Elements, 2 Molecules, 3 Materials, 4 Environment, 5 Organic Chemistry, 6 Life, 7 Intelligence, 8 Knowledge, 9 Tools, 10 Agriculture, 11 Settlements, 12 Industry, 13 Technology, 14 Civilization, 15 Space Age. Prefer results that move the player UPWARD in tier. The result tier should usually be >= the higher tier of the two inputs.\n\n' +
+    'ANTI DEAD-END RULE: avoid obscure compounds unless they unlock progression. Bad: Water+Silica -> Silicic Acid. Good: Water+Silica -> Sand (sand -> glass -> optics -> microscope -> biology -> medicine).\n' +
+    'CHAIN POTENTIAL RULE: every discovery should unlock at least 2 plausible future combinations. Prefer broadly useful results (e.g. Glass) over one-time dead ends.\n' +
+    'HUMAN KNOWLEDGE RULE: once Human exists, abstract concepts unlock (Human+Observation -> Knowledge, Knowledge+Knowledge -> Science, Science+Measurement -> Mathematics, Research+Engineering -> Innovation, Innovation+Technology -> Advanced Technology).\n' +
+    'SCALE-UP RULE: scaling is valid progression (Cell -> Tissue -> Organ -> Organism; Settlement -> Village -> Town -> City -> Metropolis; Knowledge -> Science -> Research -> Innovation; Rocket -> Space Program -> Space Agency -> Spaceflight).\n' +
+    'REALISM RULE: prefer real science, but if strict chemistry blocks progression choose the scientifically-inspired discovery instead (e.g. accept Water+Silicon -> Sand). Only reject when the result would be scientifically absurd.\n' +
+    'SPACE AGE RULE: late-game combinations should be able to reach Rocket, Satellite, Orbital Station, Fusion Energy, Planetary Colony, Terraforming, and interplanetary/interstellar travel, all traceable back to the 8 starting elements.\n\n' +
+    'Set "formula" to a real chemical formula ONLY when the result is an actual molecule/compound; otherwise use null (most materials, life, knowledge, civilization and space results have null formula). Rarer, higher-tier, more transformative discoveries should get higher rarity; mythic should be very rare. "difficulty" is an integer 1-5.\n\n' +
+    'Respond ONLY with a JSON object of this exact shape:\n' + schema + '\n\n' +
+    'emoji, formula, rarity, category, tier, difficulty and reacted are language-independent and must be identical regardless of language.\n' +
+    'Inside "text", write the fields THREE times: "id" in Bahasa Indonesia, "en" in English, "cn" in Simplified Chinese (\u7b80\u4f53\u4e2d\u6587). "result" is the discovery name, "explanation" is a short explanation, "progression" is one short sentence on why this discovery advances progression / what it unlocks next, "fun_fact" is a short fun fact, and "hint" nudges toward a good next combination. Keep meaning identical across languages; only the language differs.\n' +
+    'If the combination genuinely has no meaningful discovery or progression, set "reacted" to false and still fill a short explanation in all three languages.'
 
   let lastStatus = 0
   for (const key of keys) {
@@ -102,6 +123,7 @@ export async function POST(req: NextRequest) {
       const parsed = JSON.parse(text)
       const rarity = safeRarity(parsed.rarity)
       const category = safeCategory(parsed.category)
+      const tier = safeTier(parsed.tier)
       const difficulty = Math.max(1, Math.min(5, Number(parsed.difficulty ?? 1)))
       const reacted = parsed.reacted !== false
       const formula = parsed.formula ? String(parsed.formula) : null
@@ -128,8 +150,10 @@ export async function POST(req: NextRequest) {
         fun_fact: canonical.fun_fact,
         rarity,
         category,
+        tier,
         difficulty,
         hint: canonical.hint,
+        progression: canonical.progression,
         ingredients: [aId, bId],
         reacted,
         i18n: texts,
@@ -146,8 +170,10 @@ export async function POST(req: NextRequest) {
             rarity,
             reacted,
             category,
+            tier,
             difficulty,
             hint: texts[l].hint,
+            progression: texts[l].progression,
             ingredients: [aId, bId],
           }).catch(() => {})
         }
