@@ -169,7 +169,7 @@ function ReactionChamber({ selected, state, dragOver, onRun, onClear, onDropSpec
           </button>
           {selected.length ? <button type="button" onClick={onClear} className="lab-button">{t('lab.clear')}</button> : null}
         </div>
-        <p className="chamber-hint">{t('lab.hintLead')} <span className="kbd-hint"><kbd>Enter</kbd></span> {t('lab.hintReact')} \u00b7 <span className="kbd-hint"><kbd>Esc</kbd></span> {t('lab.hintReset')}</p>
+        <p className="chamber-hint">{t('lab.hintLead')} <span className="kbd-hint"><kbd>Enter</kbd></span> {t('lab.hintReact')} · <span className="kbd-hint"><kbd>Esc</kbd></span> {t('lab.hintReset')}</p>
       </div>
     </section>
   )
@@ -322,13 +322,13 @@ export default function Home() {
       <ParticleBurst particles={particles} />
 
       <aside className="rail">
-        <Link href="/" className="rail-brand" aria-label="BYAS Lab">\ud83e\uddea</Link>
+        <Link href="/" className="rail-brand" aria-label="BYAS Lab">🧪</Link>
         <nav className="rail-nav">
-          <Link href="/" className="rail-btn is-active" aria-label={t('nav.lab')} aria-current="page">\ud83e\uddea</Link>
-          <Link href="/quest" className="rail-btn" aria-label={t('nav.quest')}>\ud83c\udfaf</Link>
-          <Link href="/progress" className="rail-btn" aria-label={t('nav.progress')}>\ud83d\udcca</Link>
-          <Link href="/leaderboard" className="rail-btn" aria-label={t('nav.ranks')}>\ud83c\udfc6</Link>
-          <Link href="/account" className="rail-btn" aria-label={t('nav.account')}>\ud83d\udc64</Link>
+          <Link href="/" className="rail-btn is-active" aria-label={t('nav.lab')} aria-current="page">🧪</Link>
+          <Link href="/quest" className="rail-btn" aria-label={t('nav.quest')}>🎯</Link>
+          <Link href="/progress" className="rail-btn" aria-label={t('nav.progress')}>📊</Link>
+          <Link href="/leaderboard" className="rail-btn" aria-label={t('nav.ranks')}>🏆</Link>
+          <Link href="/account" className="rail-btn" aria-label={t('nav.account')}>👤</Link>
         </nav>
       </aside>
 
