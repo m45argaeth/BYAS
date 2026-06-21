@@ -12,7 +12,7 @@ interface StarterDef {
 }
 
 export const STARTER_DEFS: StarterDef[] = [
-  { id: 'H', atomicNumber: 1, emoji: '💧', formula: 'H', group: 'nonmetal', category: 'gases', period: 1, names: { id: 'Hidrogen', en: 'Hydrogen', cn: '氢' } },
+  { id: 'H', atomicNumber: 1, emoji: '🎈', formula: 'H', group: 'nonmetal', category: 'gases', period: 1, names: { id: 'Hidrogen', en: 'Hydrogen', cn: '氢' } },
   { id: 'O', atomicNumber: 8, emoji: '💨', formula: 'O', group: 'nonmetal', category: 'gases', period: 2, names: { id: 'Oksigen', en: 'Oxygen', cn: '氧' } },
   { id: 'C', atomicNumber: 6, emoji: '💎', formula: 'C', group: 'nonmetal', category: 'organic', period: 2, names: { id: 'Karbon', en: 'Carbon', cn: '碳' } },
   { id: 'N', atomicNumber: 7, emoji: '🌬️', formula: 'N', group: 'nonmetal', category: 'gases', period: 2, names: { id: 'Nitrogen', en: 'Nitrogen', cn: '氮' } },
