@@ -11,10 +11,11 @@ import { DiscoveryModal } from '@/components/DiscoveryModal'
 import { GameHeader } from '@/components/GameHeader'
 import { BottomNav } from '@/components/BottomNav'
 import { useI18n } from '@/lib/i18n'
+import { discoveryText } from '@/lib/localize'
 
 export default function PokedexPage() {
   const { user } = useAuth()
-  const { t } = useI18n()
+  const { t, lang } = useI18n()
   const [discoveries, setDiscoveries] = useState<Discovery[]>([])
   const [selected, setSelected] = useState<Discovery | null>(null)
 
@@ -86,7 +87,7 @@ export default function PokedexPage() {
                         className="flex flex-col items-center gap-1 rounded-2xl border border-base bg-white/[0.03] p-3 text-center transition-transform duration-150 hover:-translate-y-0.5 active:scale-95"
                       >
                         <span className="text-3xl">{d.emoji}</span>
-                        <span className="text-xs font-bold">{d.result}</span>
+                        <span className="text-xs font-bold">{discoveryText(d, lang).result}</span>
                         {d.formula ? <span className="font-mono text-[10px] text-muted">{d.formula}</span> : null}
                       </button>
                     ))}

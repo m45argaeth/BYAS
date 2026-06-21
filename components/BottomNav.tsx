@@ -2,17 +2,19 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
+import { useI18n } from '@/lib/i18n'
 
 const ITEMS = [
-  { href: '/', icon: '🧪', label: 'Lab' },
-  { href: '/quest', icon: '🎯', label: 'Quest' },
-  { href: '/progress', icon: '📊', label: 'Progress' },
-  { href: '/leaderboard', icon: '🏆', label: 'Ranks' },
-  { href: '/account', icon: '👤', label: 'Account' },
+  { href: '/', icon: '🧪', key: 'nav.lab' },
+  { href: '/quest', icon: '🎯', key: 'nav.quest' },
+  { href: '/progress', icon: '📊', key: 'nav.progress' },
+  { href: '/leaderboard', icon: '🏆', key: 'nav.ranks' },
+  { href: '/account', icon: '👤', key: 'nav.account' },
 ]
 
 export function BottomNav() {
   const pathname = usePathname()
+  const { t } = useI18n()
   return (
     <nav className="tabbar" aria-label="Primary">
       {ITEMS.map((item) => {
@@ -20,7 +22,7 @@ export function BottomNav() {
         return (
           <Link key={item.href} href={item.href} className={`tab-item ${active ? 'is-active' : ''}`} aria-current={active ? 'page' : undefined}>
             <span className="ico">{item.icon}</span>
-            {item.label}
+            {t(item.key)}
           </Link>
         )
       })}

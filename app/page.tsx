@@ -14,6 +14,7 @@ import { useAuth } from '@/lib/useAuth'
 import { syncDiscoveries, syncStats } from '@/lib/sync'
 import { pushCloudDiscovery, pushStats, pushTotalXp } from '@/lib/cloud'
 import { useI18n } from '@/lib/i18n'
+import { discoveryText } from '@/lib/localize'
 import { initSound, playPop, playError, playSuccess, playUnlock, playCombineCast, playReactionBurst } from '@/lib/sound'
 import { ACHIEVEMENTS, computeUnlocked, loadSeen, saveSeen } from '@/lib/achievements'
 import { RARITY_GLOW } from '@/lib/rarity'
@@ -60,7 +61,7 @@ function SpecimenTile({ element, selected, onSelect, onDragStart }: { element: E
     <button
       type="button"
       aria-pressed={selected}
-      aria-label={`${element.name}${element.rarity ? `, ${element.rarity}` : ''}. ${selected ? 'Selected' : 'Tap to select, drag to chamber'}`}
+      aria-label={element.name}
       onClick={onSelect}
       draggable
       onDragStart={onDragStart}
@@ -86,7 +87,7 @@ function ChamberSlot({ element, label, onRemove }: { element?: Element; label: s
   const colors = GROUP_COLORS[group]
   const symbol = element.id.length <= 3 ? element.id : element.emoji
   return (
-    <button type="button" onClick={onRemove} aria-label={`Remove ${element.name} from chamber`} className="chamber-slot filled" style={{ '--slot-glow': colors.ring } as CSSProperties}>
+    <button type="button" onClick={onRemove} aria-label={element.name} className="chamber-slot filled" style={{ '--slot-glow': colors.ring } as CSSProperties}>
       <small>{element.atomicNumber ?? '∞'}</small>
       <strong>{symbol}</strong>
       <span>{element.name}</span>
@@ -95,9 +96,10 @@ function ChamberSlot({ element, label, onRemove }: { element?: Element; label: s
 }
 
 function ReactionChamber({ selected, state, dragOver, onRun, onClear, onDropSpecimen, onRemoveSpecimen, onDragStateChange }: { selected: Element[]; state: ReactorState; dragOver: boolean; onRun: () => void; onClear: () => void; onDropSpecimen: (id: string) => void; onRemoveSpecimen: (index: number) => void; onDragStateChange: (v: boolean) => void }) {
+  const { t } = useI18n()
   const ready = selected.length === 2 && state !== 'reacting'
   const step = state === 'reacting' ? 4 : selected.length === 0 ? 1 : selected.length === 1 ? 2 : 3
-  const status = state === 'reacting' ? 'Reaction in progress…' : ready ? 'Ready — run the experiment' : selected.length === 1 ? 'Pick a second specimen' : 'Insert two specimens'
+  const status = state === 'reacting' ? t('lab.statusReacting') : ready ? t('lab.statusReady') : selected.length === 1 ? t('lab.statusOne') : t('lab.statusEmpty')
   return (
     <section
       className={`reaction-chamber state-${state} ${dragOver ? 'chamber-drop-active' : ''}`}
@@ -108,20 +110,20 @@ function ReactionChamber({ selected, state, dragOver, onRun, onClear, onDropSpec
       onDrop={(e) => { e.preventDefault(); const id = e.dataTransfer.getData('text/plain'); if (id) onDropSpecimen(id); onDragStateChange(false) }}
     >
       <div className="chamber-core">
-        <p className="chamber-step"><b>{step}/4</b> Pick A · Pick B · React · Discover</p>
+        <p className="chamber-step"><b>{step}/4</b> {t('lab.flow')}</p>
         <div className="chamber-slots">
-          <ChamberSlot element={selected[0]} label="Specimen A" onRemove={() => onRemoveSpecimen(0)} />
+          <ChamberSlot element={selected[0]} label={t('lab.specimenA')} onRemove={() => onRemoveSpecimen(0)} />
           <div className="chamber-plus">+</div>
-          <ChamberSlot element={selected[1]} label="Specimen B" onRemove={() => onRemoveSpecimen(1)} />
+          <ChamberSlot element={selected[1]} label={t('lab.specimenB')} onRemove={() => onRemoveSpecimen(1)} />
         </div>
         <h2>{status}</h2>
         <div className="mt-5 flex justify-center gap-2">
           <button type="button" onClick={onRun} disabled={!ready} className="lab-button-primary min-w-44 disabled:cursor-not-allowed disabled:opacity-40">
-            {state === 'reacting' ? 'Synthesizing…' : 'Run Experiment'}
+            {state === 'reacting' ? t('lab.synth') : t('lab.run')}
           </button>
-          {selected.length ? <button type="button" onClick={onClear} className="lab-button">Clear</button> : null}
+          {selected.length ? <button type="button" onClick={onClear} className="lab-button">{t('lab.clear')}</button> : null}
         </div>
-        <p className="chamber-hint">Tarik specimen ke chamber, atau tekan <span className="kbd-hint"><kbd>Enter</kbd></span> untuk reaksi · <span className="kbd-hint"><kbd>Esc</kbd></span> reset</p>
+        <p className="chamber-hint">{t('lab.hintLead')} <span className="kbd-hint"><kbd>Enter</kbd></span> {t('lab.hintReact')} · <span className="kbd-hint"><kbd>Esc</kbd></span> {t('lab.hintReset')}</p>
       </div>
     </section>
   )
@@ -129,7 +131,7 @@ function ReactionChamber({ selected, state, dragOver, onRun, onClear, onDropSpec
 
 export default function Home() {
   const { user } = useAuth()
-  const { lang } = useI18n()
+  const { lang, t } = useI18n()
 
   const [discoveries, setDiscoveries] = useState<Discovery[]>([])
   const [stats, setStats] = useState<Stats>(DEFAULT_STATS)
@@ -165,7 +167,7 @@ export default function Home() {
     const map = new Map<string, Element>()
     for (const s of buildStarters(lang)) map.set(s.id, s)
     for (const d of discoveries) {
-      if (!map.has(d.result)) map.set(d.result, { id: d.result, name: d.result, emoji: d.emoji, formula: d.formula ?? undefined, rarity: d.rarity, category: d.category })
+      if (!map.has(d.result)) map.set(d.result, { id: d.result, name: discoveryText(d, lang).result, emoji: d.emoji, formula: d.formula ?? undefined, rarity: d.rarity, category: d.category })
     }
     return Array.from(map.values())
   }, [lang, discoveries])
@@ -203,7 +205,7 @@ export default function Home() {
     if (!fresh.length) return
     const ach = ACHIEVEMENTS.find((a) => a.id === fresh[0])
     if (ach) {
-      setAchToast({ emoji: ach.emoji, title: ach.title, label: 'Achievement Unlocked' })
+      setAchToast({ emoji: ach.emoji, title: ach.title, label: t('ach.unlocked') })
       playUnlock()
       setTimeout(() => setAchToast(null), 3600)
     }
@@ -224,9 +226,9 @@ export default function Home() {
       if (key) headers['x-mimo-key'] = key
       const res = await fetch('/api/combine', { method: 'POST', headers, body: JSON.stringify({ aId: a.id, bId: b.id, aName: a.name, bName: b.name, lang }) })
       const data = await res.json()
-      if (!res.ok || data.error) { playError(); setReactorState('failed'); spawnParticles(false); showToast('Experiment failed: ' + (data?.error ?? 'combine')); return }
+      if (!res.ok || data.error) { playError(); setReactorState('failed'); spawnParticles(false); showToast(t('lab.failPrefix') + (data?.error ?? 'combine')); return }
       const result = data as CombineResult
-      if (!result.reacted) { playError(); haptic(40); setReactorState('failed'); spawnParticles(false); showToast('No stable reaction detected.'); setSelected([]); return }
+      if (!result.reacted) { playError(); haptic(40); setReactorState('failed'); spawnParticles(false); showToast(t('lab.noReaction')); setSelected([]); return }
       setReactorState('success')
       spawnParticles(true, result.rarity)
       playReactionBurst()
@@ -249,13 +251,13 @@ export default function Home() {
       checkAchievements(nextList, ns)
       setSelected([])
     } catch {
-      playError(); setReactorState('failed'); spawnParticles(false); showToast('Network error. Lab connection unstable.')
+      playError(); setReactorState('failed'); spawnParticles(false); showToast(t('lab.networkErr'))
     } finally {
       setLoading(false)
       setTimeout(() => setReactorState('idle'), 900)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selected, loading, inventory, lang, stats, discoveries, user, spawnParticles])
+  }, [selected, loading, inventory, lang, stats, discoveries, user, spawnParticles, t])
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
@@ -276,11 +278,11 @@ export default function Home() {
       <aside className="rail">
         <Link href="/" className="rail-brand" aria-label="BYAS Lab">🧪</Link>
         <nav className="rail-nav">
-          <Link href="/" className="rail-btn is-active" aria-label="Lab" aria-current="page">🧪</Link>
-          <Link href="/quest" className="rail-btn" aria-label="Quest">🎯</Link>
-          <Link href="/progress" className="rail-btn" aria-label="Progress">📊</Link>
-          <Link href="/leaderboard" className="rail-btn" aria-label="Ranks">🏆</Link>
-          <Link href="/account" className="rail-btn" aria-label="Account">👤</Link>
+          <Link href="/" className="rail-btn is-active" aria-label={t('nav.lab')} aria-current="page">🧪</Link>
+          <Link href="/quest" className="rail-btn" aria-label={t('nav.quest')}>🎯</Link>
+          <Link href="/progress" className="rail-btn" aria-label={t('nav.progress')}>📊</Link>
+          <Link href="/leaderboard" className="rail-btn" aria-label={t('nav.ranks')}>🏆</Link>
+          <Link href="/account" className="rail-btn" aria-label={t('nav.account')}>👤</Link>
         </nav>
       </aside>
 
@@ -290,8 +292,8 @@ export default function Home() {
           <ReactionChamber selected={selEls} state={reactorState} dragOver={dragOver} onRun={combine} onClear={() => setSelected([])} onDropSpecimen={addToChamber} onRemoveSpecimen={(i) => setSelected((prev) => prev.filter((_, idx) => idx !== i))} onDragStateChange={setDragOver} />
           <section className="specimen-dock" aria-label="Specimen dock">
             <div className="mb-3 flex items-center justify-between gap-3">
-              <div><p className="lab-eyebrow">Specimen Dock</p><h3>Choose two materials</h3></div>
-              {selected.length ? <button onClick={() => setSelected([])} className="text-xs font-bold text-cyan-200/70 underline" type="button">clear selection</button> : null}
+              <div><p className="lab-eyebrow">{t('lab.dockEyebrow')}</p><h3>{t('lab.dockTitle')}</h3></div>
+              {selected.length ? <button onClick={() => setSelected([])} className="text-xs font-bold text-cyan-200/70 underline" type="button">{t('lab.clearSel')}</button> : null}
             </div>
             <div className="specimen-grid">
               {inventory.map((el) => (

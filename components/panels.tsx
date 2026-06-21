@@ -5,6 +5,8 @@ import { getDailyChallenge, dailyProgress, isDailyClaimed } from '@/lib/daily'
 import { getWeeklyQuest, weeklyProgress, isWeeklyClaimed, getMystery, isMysterySolved, isMysteryClaimed, isMysteryHintUsed, STREAK_TIERS, isStreakClaimed, isStreakReached } from '@/lib/retention'
 import { COLLECTION_MILESTONES, labReputation, masteryBreakdown, MASTERY_LABEL, nextMilestone } from '@/lib/progress'
 import { RARITY_LABEL } from '@/lib/rarity'
+import { useI18n } from '@/lib/i18n'
+import { discoveryText } from '@/lib/localize'
 
 export function DailyResearchPanel({ discoveries, stats, onClaim }: { discoveries: Discovery[]; stats: Stats; onClaim: () => void }) {
   const ch = getDailyChallenge()
@@ -138,17 +140,18 @@ export function CollectionPanel({ discoveries }: { discoveries: Discovery[] }) {
 }
 
 export function ResearchLog({ discoveries }: { discoveries: Discovery[] }) {
+  const { t, lang } = useI18n()
   const recent = discoveries.slice(-6).reverse()
   return (
     <aside className="lab-panel">
-      <p className="lab-eyebrow">Latest Research Log</p>
+      <p className="lab-eyebrow">{t('log.title')}</p>
       <div className="mt-3 space-y-2">
         {recent.length ? recent.map((d) => (
           <div key={`${d.result}-${d.discoveredAt}`} className="research-log-row">
             <span>{d.emoji}</span>
-            <div className="min-w-0 flex-1"><strong>{d.result}</strong><small>{d.formula ?? 'No formula'} · {RARITY_LABEL[d.rarity]}</small></div>
+            <div className="min-w-0 flex-1"><strong>{discoveryText(d, lang).result}</strong><small>{d.formula ?? t('log.noFormula')} · {RARITY_LABEL[d.rarity]}</small></div>
           </div>
-        )) : <p className="text-sm text-muted">Belum ada discovery. Jalankan eksperimen pertama.</p>}
+        )) : <p className="text-sm text-muted">{t('log.empty')}</p>}
       </div>
     </aside>
   )
