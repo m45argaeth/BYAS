@@ -1,4 +1,4 @@
-import type { Discovery, Lang, LocalizedText, MasteryCategory, Rarity } from './types'
+import type { Discovery, Lang, LocalizedText, MasteryCategory, Rarity, Stats } from './types'
 import { getSupabaseBrowser } from './supabaseBrowser'
 
 const COLS_BASE = 'result, formula, emoji, explanation, fun_fact, rarity, discovered_at, category, difficulty, xp, hint, ingredients'
