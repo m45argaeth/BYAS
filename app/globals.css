@@ -44,6 +44,14 @@
   .text-muted { color: var(--muted); }
   .border-base { border-color: var(--border); }
 
+  /* ===== Rarity tier palette (shared by tiles + chamber) ===== */
+  .tier-common { --tier: #94a3b8; }
+  .tier-uncommon { --tier: #34d399; }
+  .tier-rare { --tier: #38bdf8; }
+  .tier-epic { --tier: #a78bfa; }
+  .tier-legendary { --tier: #fbbf24; }
+  .tier-mythic { --tier: #e879f9; }
+
   /* ===== App shell: rail | stage ===== */
   .app {
     position: relative;
@@ -237,16 +245,17 @@
     border: 1px dashed var(--border-strong);
     background: color-mix(in srgb, var(--surface-2) 70%, transparent);
     display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px;
+    padding: 10px;
     transition: border-color .15s ease, transform .12s ease, box-shadow .2s ease;
   }
   button.chamber-slot { font: inherit; color: inherit; width: 100%; cursor: pointer; }
   .chamber-slot.empty span { color: var(--muted); font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: .14em; }
-  .chamber-slot.filled { border-style: solid; border-color: var(--accent); box-shadow: 0 0 22px -10px var(--glow); }
+  .chamber-slot.filled { border-style: solid; border-color: color-mix(in srgb, var(--tier, var(--accent)) 55%, var(--border)); background: linear-gradient(180deg, color-mix(in srgb, var(--tier, var(--accent)) 12%, var(--surface-2)), var(--surface-2)); box-shadow: 0 0 22px -10px color-mix(in srgb, var(--tier, var(--glow)) 65%, transparent); }
   button.chamber-slot.filled:hover { border-color: #fb7185; }
   button.chamber-slot.filled:active { transform: scale(.97); }
   .chamber-slot small { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--muted); font-weight: 800; }
-  .chamber-slot small.is-compound { text-transform: uppercase; letter-spacing: .08em; font-size: 10px; color: var(--accent); }
-  .chamber-slot strong { font-size: 42px; line-height: 1; font-weight: 800; }
+  .chamber-slot small.is-compound { text-transform: uppercase; letter-spacing: .07em; font-size: 10px; color: color-mix(in srgb, var(--tier, var(--accent)) 75%, var(--text)); }
+  .chamber-slot strong { font-size: 42px; line-height: 1; font-weight: 800; text-align: center; }
   .chamber-slot strong.is-formula { font-size: 26px; letter-spacing: 0; line-height: 1.06; word-break: break-word; overflow-wrap: anywhere; max-width: 94%; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
   .chamber-slot span { max-width: 90%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text); font-size: 12px; font-weight: 700; }
   .chamber-hint { margin-top: 14px; font-size: 11px; font-weight: 600; letter-spacing: .04em; color: var(--muted); }
@@ -271,13 +280,48 @@
   }
   .specimen-dock h3, .lab-panel h3 { font-size: 17px; font-weight: 800; letter-spacing: -0.02em; }
   .lab-eyebrow { font-size: 10px; font-weight: 800; letter-spacing: .22em; text-transform: uppercase; color: var(--muted); }
+
+  /* dock header + filters */
+  .dock-head { display: flex; flex-direction: column; gap: 11px; margin-bottom: 14px; }
+  .dock-head-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+  .dock-clear { font-size: 11px; font-weight: 800; color: color-mix(in srgb, var(--accent) 70%, var(--text)); text-decoration: underline; flex: none; }
+  .dock-filters { display: flex; flex-wrap: wrap; gap: 7px; }
+  .dock-filter {
+    display: inline-flex; align-items: center; gap: 6px;
+    border-radius: 999px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    padding: 6px 12px;
+    font-size: 11px; font-weight: 800; color: var(--muted);
+    transition: border-color .15s ease, background .15s ease, color .15s ease, transform .12s ease;
+  }
+  .dock-filter:hover { border-color: var(--accent); }
+  .dock-filter:active { transform: scale(.96); }
+  .dock-filter .dot { width: 7px; height: 7px; border-radius: 999px; background: currentColor; opacity: .55; }
+  .dock-filter.is-on { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 15%, var(--surface)); color: var(--text); box-shadow: 0 0 16px -8px var(--glow); }
+  .dock-filter.is-on .dot { opacity: 1; background: var(--accent); }
+
+  /* grouped sections */
+  .specimen-section + .specimen-section { margin-top: 16px; }
+  .specimen-section-title {
+    display: flex; align-items: center; gap: 10px;
+    margin-bottom: 9px;
+    font-size: 10px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase;
+    color: color-mix(in srgb, var(--tier, var(--muted)) 70%, var(--muted));
+  }
+  .specimen-section-title::before { content: ''; width: 8px; height: 8px; border-radius: 999px; background: var(--tier, var(--muted)); flex: none; box-shadow: 0 0 10px -2px var(--tier, transparent); }
+  .specimen-section-title::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+  .specimen-section-count { flex: none; color: var(--muted); font-variant-numeric: tabular-nums; letter-spacing: .04em; }
+
   .specimen-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 10px; }
   .specimen-tile {
     position: relative;
-    min-height: 112px;
+    display: flex;
+    flex-direction: column;
+    min-height: 120px;
     border-radius: 16px;
-    border: 1px solid var(--specimen-border, var(--border));
-    background: var(--surface-2);
+    border: 1px solid color-mix(in srgb, var(--tier, var(--border)) 30%, var(--border));
+    background: linear-gradient(165deg, color-mix(in srgb, var(--tier, #64748b) 15%, var(--surface-2)) 0%, var(--surface-2) 64%);
     padding: 11px;
     text-align: left;
     overflow: hidden;
@@ -288,18 +332,18 @@
     content: '';
     position: absolute; inset: 0;
     border-radius: inherit;
-    background: radial-gradient(120% 70% at 50% 0%, var(--specimen-glow, transparent), transparent 62%);
-    opacity: .5;
+    background: radial-gradient(120% 70% at 50% 0%, color-mix(in srgb, var(--tier, transparent) 30%, transparent), transparent 62%);
+    opacity: .55;
     pointer-events: none;
   }
-  .specimen-tile:hover { border-color: var(--accent); transform: translateY(-2px); }
+  .specimen-tile:hover { border-color: var(--tier, var(--accent)); transform: translateY(-2px); box-shadow: 0 0 22px -10px color-mix(in srgb, var(--tier, var(--glow)) 60%, transparent); }
   .specimen-tile:active { transform: scale(.97); cursor: grabbing; }
-  .specimen-tile.is-selected { border-color: var(--accent); box-shadow: 0 0 22px -10px var(--glow); }
-  .specimen-number { position: relative; display: block; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--muted); font-size: 11px; font-weight: 800; }
-  .specimen-number.is-compound { text-transform: uppercase; letter-spacing: .06em; font-size: 8.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--accent); }
-  .specimen-symbol { position: relative; display: block; margin-top: 8px; font-size: 30px; font-weight: 800; line-height: .95; letter-spacing: -.06em; }
-  .specimen-symbol.is-formula { margin-top: 10px; font-size: clamp(15px, 4.4vw, 22px); letter-spacing: 0; line-height: 1.08; word-break: break-word; overflow-wrap: anywhere; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
-  .specimen-name { position: relative; display: block; margin-top: 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; font-weight: 700; }
+  .specimen-tile.is-selected { border-color: var(--tier, var(--accent)); box-shadow: 0 0 0 1px var(--tier, var(--accent)), 0 0 24px -8px color-mix(in srgb, var(--tier, var(--glow)) 70%, transparent); }
+  .specimen-number { position: relative; display: block; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--muted); font-size: 11px; font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .specimen-number.is-compound { text-transform: uppercase; letter-spacing: .02em; font-size: 8px; color: color-mix(in srgb, var(--tier, var(--accent)) 78%, var(--text)); }
+  .specimen-symbol { position: relative; display: flex; align-items: center; flex: 1; min-height: 38px; margin-top: 6px; font-size: 30px; font-weight: 800; line-height: .95; letter-spacing: -.06em; }
+  .specimen-symbol.is-formula { font-size: clamp(15px, 4.4vw, 22px); letter-spacing: 0; line-height: 1.08; word-break: break-word; overflow-wrap: anywhere; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+  .specimen-name { position: relative; display: block; margin-top: 8px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; font-weight: 700; }
   .specimen-group { position: relative; display: block; margin-top: 3px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: .1em; }
 
   /* ===== Progression cards (used on Quest / Progress pages) ===== */
@@ -352,7 +396,7 @@
   .lab-nav-chip:focus-visible, .lab-button:focus-visible, .lab-button-primary:focus-visible,
   .specimen-tile:focus-visible, button.chamber-slot:focus-visible, .rail-btn:focus-visible,
   .switch-toggle:focus-visible, .lang-opt:focus-visible, .seg-opt:focus-visible,
-  .tab-item:focus-visible, a:focus-visible {
+  .dock-filter:focus-visible, .tab-item:focus-visible, a:focus-visible {
     outline: 2px solid var(--accent); outline-offset: 2px;
   }
   .kbd-hint { display: inline-flex; align-items: center; gap: 4px; }
