@@ -3,14 +3,15 @@
 import type { Discovery, Stats } from '@/lib/types'
 import { getDailyChallenge, dailyProgress, isDailyClaimed } from '@/lib/daily'
 import { getWeeklyQuest, weeklyProgress, isWeeklyClaimed, getMystery, isMysterySolved, isMysteryClaimed, isMysteryHintUsed, STREAK_TIERS, isStreakClaimed, isStreakReached } from '@/lib/retention'
-import { COLLECTION_MILESTONES, labReputation, masteryBreakdown, MASTERY_LABEL, nextMilestone } from '@/lib/progress'
+import { COLLECTION_MILESTONES, labReputation, masteryBreakdown, MASTERY_LABEL, nextMilestone, levelFromXp, totalXp, todayStr } from '@/lib/progress'
 import { RARITY_LABEL } from '@/lib/rarity'
 import { useI18n } from '@/lib/i18n'
 import { discoveryText } from '@/lib/localize'
 
 export function DailyResearchPanel({ discoveries, stats, onClaim }: { discoveries: Discovery[]; stats: Stats; onClaim: () => void }) {
   const { t } = useI18n()
-  const ch = getDailyChallenge()
+  const level = levelFromXp(totalXp(discoveries, stats))
+  const ch = getDailyChallenge(todayStr(), level)
   const prog = dailyProgress(ch, discoveries)
   const done = prog >= ch.target
   const claimed = isDailyClaimed(ch, stats)
