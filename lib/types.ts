@@ -2,14 +2,20 @@ export type Lang = 'id' | 'en' | 'cn'
 
 export type Rarity = 'common' | 'uncommon' | 'rare' | 'epic' | 'legendary' | 'mythic'
 
-export type MasteryCategory =
-  | 'organic'
-  | 'inorganic'
-  | 'metals'
-  | 'gases'
+// BYAS Discovery Engine v3 — the 8 discovery domains a result can belong to.
+// (Replaces the old chemistry-only mastery categories.)
+export type DiscoveryCategory =
+  | 'chemistry'
+  | 'materials'
+  | 'geology'
   | 'biology'
-  | 'energy'
-  | 'industrial'
+  | 'knowledge'
+  | 'technology'
+  | 'civilization'
+  | 'space'
+
+// Back-compat alias: much of the codebase still imports `MasteryCategory`.
+export type MasteryCategory = DiscoveryCategory
 
 export type ElementGroup =
   | 'alkali-metal'
@@ -29,6 +35,8 @@ export interface LocalizedText {
   explanation: string
   fun_fact: string
   hint?: string
+  // v3: short "why this advances progression" note (the Progression Reason).
+  progression?: string
 }
 
 export interface CombineResult {
@@ -40,12 +48,16 @@ export interface CombineResult {
   rarity: Rarity
   reacted: boolean
   category?: MasteryCategory
+  // v3: progression tier 1..15 (1 = raw Elements, 15 = Space Age).
+  tier?: number
   difficulty?: number
   hint?: string
+  // v3: progression reason (canonical/English copy; localized copies live in i18n).
+  progression?: string
   ingredients?: string[]
   xp?: number
   // Per-language text. Language-independent fields (emoji, formula, rarity,
-  // category, difficulty) live at the top level and are shared across languages.
+  // category, tier, difficulty) live at the top level and are shared across languages.
   i18n?: Partial<Record<Lang, LocalizedText>>
 }
 
@@ -59,6 +71,8 @@ export interface Element {
   period?: number
   rarity?: Rarity
   category?: MasteryCategory
+  // v3: progression tier of this specimen (starters = 1).
+  tier?: number
   // For discovered compounds: the specimen ids that were combined to make it.
   ingredients?: string[]
 }

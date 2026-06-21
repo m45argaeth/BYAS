@@ -10,9 +10,16 @@ export function discoveryText(d: CombineResult, lang: Lang): LocalizedText {
       explanation: loc.explanation || d.explanation,
       fun_fact: loc.fun_fact || d.fun_fact,
       hint: loc.hint ?? d.hint,
+      progression: loc.progression ?? d.progression,
     }
   }
-  return { result: d.result, explanation: d.explanation, fun_fact: d.fun_fact, hint: d.hint }
+  return {
+    result: d.result,
+    explanation: d.explanation,
+    fun_fact: d.fun_fact,
+    hint: d.hint,
+    progression: d.progression,
+  }
 }
 
 // Stable, language-independent identity for a discovery. Used for de-duplication

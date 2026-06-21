@@ -292,16 +292,19 @@ export default function Home() {
     setTimeout(() => setParticles([]), 1400)
   }, [])
 
+  // Self-combination (A+A) is allowed: tapping the same specimen twice fills both
+  // slots. With two slots full, a new tap starts a fresh selection. Deselect via
+  // the chamber slot tap or the clear button.
   function toggle(id: string) {
     playPop()
     haptic(6)
-    setSelected((prev) => prev.includes(id) ? prev.filter((x) => x !== id) : prev.length >= 2 ? [prev[1], id] : [...prev, id])
+    setSelected((prev) => prev.length >= 2 ? [id] : [...prev, id])
   }
 
   function addToChamber(id: string) {
     playPop()
     haptic(10)
-    setSelected((prev) => prev.includes(id) ? prev : prev.length >= 2 ? [prev[1], id] : [...prev, id])
+    setSelected((prev) => prev.length >= 2 ? [id] : [...prev, id])
   }
 
   function showToast(text: string) { setMsg(text); setTimeout(() => setMsg(null), 2600) }

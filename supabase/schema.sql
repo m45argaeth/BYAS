@@ -10,16 +10,20 @@ create table if not exists combinations (
   rarity text,
   reacted boolean default true,
   category text,
+  tier int,
   difficulty int default 1,
   hint text,
+  progression text,
   ingredients jsonb default '[]'::jsonb,
   discovered_by uuid,
   created_at timestamptz default now()
 );
 
 alter table combinations add column if not exists category text;
+alter table combinations add column if not exists tier int;
 alter table combinations add column if not exists difficulty int default 1;
 alter table combinations add column if not exists hint text;
+alter table combinations add column if not exists progression text;
 alter table combinations add column if not exists ingredients jsonb default '[]'::jsonb;
 
 -- (legacy) inventory sederhana per pemain.
@@ -40,19 +44,25 @@ create table if not exists user_discoveries (
   fun_fact text,
   rarity text,
   category text,
+  tier int,
   difficulty int default 1,
   xp int default 10,
   hint text,
+  progression text,
   ingredients jsonb default '[]'::jsonb,
+  i18n jsonb,
   discovered_at timestamptz default now(),
   primary key (user_id, result)
 );
 
 alter table user_discoveries add column if not exists category text;
+alter table user_discoveries add column if not exists tier int;
 alter table user_discoveries add column if not exists difficulty int default 1;
 alter table user_discoveries add column if not exists xp int default 10;
 alter table user_discoveries add column if not exists hint text;
+alter table user_discoveries add column if not exists progression text;
 alter table user_discoveries add column if not exists ingredients jsonb default '[]'::jsonb;
+alter table user_discoveries add column if not exists i18n jsonb;
 
 alter table user_discoveries enable row level security;
 drop policy if exists "own_discoveries" on user_discoveries;

@@ -3,7 +3,7 @@
 import { useEffect, useState, type CSSProperties } from 'react'
 import type { CombineResult } from '@/lib/types'
 import { RARITY_GRADIENT, RARITY_GLOW, RARITY_LABEL } from '@/lib/rarity'
-import { MASTERY_LABEL, guessCategory } from '@/lib/progress'
+import { MASTERY_LABEL, guessCategory, tierLabel } from '@/lib/progress'
 import { useI18n } from '@/lib/i18n'
 import { discoveryText } from '@/lib/localize'
 import { shareDiscovery } from '@/lib/share'
@@ -35,6 +35,7 @@ export function DiscoveryModal({
   const glow = RARITY_GLOW[result.rarity] ?? RARITY_GLOW.common
   const rarityLabel = RARITY_LABEL[result.rarity] ?? result.rarity
   const category = result.category ?? guessCategory(result)
+  const tierText = tierLabel(result.tier)
   const delay = REVEAL_DELAY[result.rarity] ?? 500
 
   const [stage, setStage] = useState<'charging' | 'revealed'>(isNew ? 'charging' : 'revealed')
@@ -121,6 +122,11 @@ export function DiscoveryModal({
               <span className="rounded-full border border-white/16 bg-white/12 px-3 py-1 text-[10px] font-bold text-white/75">
                 {MASTERY_LABEL[category]}
               </span>
+              {tierText ? (
+                <span className="rounded-full border border-amber-300/24 bg-amber-300/12 px-3 py-1 text-[10px] font-bold text-amber-100">
+                  {tierText}
+                </span>
+              ) : null}
             </div>
           )}
           {revealed && typeof xpGain === 'number' && xpGain > 0 ? (
@@ -133,6 +139,12 @@ export function DiscoveryModal({
           {revealed ? (
             <>
               <p className="leading-relaxed text-slate-200">{tx.explanation}</p>
+              {tx.progression ? (
+                <div className="rounded-2xl border border-emerald-300/16 bg-emerald-300/8 p-3 text-slate-300">
+                  <p className="text-[10px] font-black uppercase tracking-[0.22em] text-emerald-200/70">{t('discovery.progression')}</p>
+                  <p className="mt-1">{tx.progression}</p>
+                </div>
+              ) : null}
               {tx.fun_fact ? (
                 <div className="rounded-2xl border border-cyan-300/14 bg-cyan-300/8 p-3 text-slate-300">
                   <p className="text-[10px] font-black uppercase tracking-[0.22em] text-cyan-200/70">{t('discovery.labNote')}</p>
