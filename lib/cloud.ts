@@ -56,11 +56,11 @@ async function upsertRows(sb: ReturnType<typeof getSupabaseBrowser>, rows: Retur
 export async function pullCloudDiscoveries(userId: string): Promise<Discovery[]> {
   const sb = getSupabaseBrowser()
   if (!sb) return []
-  let res = await sb.from('user_discoveries').select(COLS).eq('user_id', userId)
+  let res: any = await sb.from('user_discoveries').select(COLS).eq('user_id', userId)
   if (res.error) res = await sb.from('user_discoveries').select(COLS_BASE).eq('user_id', userId)
   const { data, error } = res
   if (error || !data) return []
-  return data.map((r: any) => ({
+  return (data as any[]).map((r: any) => ({
     result: r.result,
     formula: r.formula ?? null,
     emoji: r.emoji ?? '✨',
@@ -101,22 +101,23 @@ export async function pullStats(userId: string): Promise<Stats | null> {
     .eq('user_id', userId)
     .maybeSingle()
   if (error || !data) return null
+  const d = data as any
   return {
-    currentStreak: data.current_streak ?? 0,
-    bestStreak: data.best_streak ?? 0,
-    lastPlayed: data.last_played ?? null,
-    displayName: data.display_name ?? null,
-    totalXp: data.total_xp ?? 0,
-    bonusXp: data.bonus_xp ?? 0,
-    coins: data.coins ?? 0,
-    hintTokens: data.hint_tokens ?? 0,
-    labReputation: data.lab_reputation ?? 0,
-    completedDailyChallenges: arr<string>(data.completed_daily_challenges),
-    completedWeeklyQuests: arr<string>(data.completed_weekly_quests),
-    claimedStreakRewards: arr<number>(data.claimed_streak_rewards),
-    solvedMysteries: arr<string>(data.solved_mysteries),
-    mysteryHintsUsed: arr<string>(data.mystery_hints_used),
-    failedExperiments: data.failed_experiments ?? 0,
+    currentStreak: d.current_streak ?? 0,
+    bestStreak: d.best_streak ?? 0,
+    lastPlayed: d.last_played ?? null,
+    displayName: d.display_name ?? null,
+    totalXp: d.total_xp ?? 0,
+    bonusXp: d.bonus_xp ?? 0,
+    coins: d.coins ?? 0,
+    hintTokens: d.hint_tokens ?? 0,
+    labReputation: d.lab_reputation ?? 0,
+    completedDailyChallenges: arr<string>(d.completed_daily_challenges),
+    completedWeeklyQuests: arr<string>(d.completed_weekly_quests),
+    claimedStreakRewards: arr<number>(d.claimed_streak_rewards),
+    solvedMysteries: arr<string>(d.solved_mysteries),
+    mysteryHintsUsed: arr<string>(d.mystery_hints_used),
+    failedExperiments: d.failed_experiments ?? 0,
   }
 }
 
@@ -185,7 +186,7 @@ export async function pullLeaderboard(limit = 50): Promise<LeaderboardEntry[]> {
     .order('total_xp', { ascending: false })
     .limit(limit)
   if (error || !data) return []
-  return data.map((r: any) => ({
+  return (data as any[]).map((r: any) => ({
     userId: r.user_id,
     displayName: r.display_name ?? null,
     totalXp: r.total_xp ?? 0,
