@@ -6,8 +6,9 @@ export interface DailyChallenge {
   kind: 'element' | 'rarity' | 'any'
   param: string
   target: number
-  title: string
-  description: string
+  titleKey: string
+  descKey: string
+  vars: Record<string, string | number>
   rewardXp: number
   rewardCoins: number
   rewardHints: number
@@ -42,8 +43,9 @@ export function getDailyChallenge(dateStr: string = todayStr()): DailyChallenge 
       kind: 'element',
       param: el.sym,
       target,
-      title: `Find ${target} ${el.label} compounds`,
-      description: `Temukan ${target} senyawa yang mengandung ${el.label} (${el.sym}) hari ini.`,
+      titleKey: 'daily.elemTitle',
+      descKey: 'daily.elemDesc',
+      vars: { n: target, el: el.label, sym: el.sym },
       rewardXp: 80,
       rewardCoins: 25,
       rewardHints: 1,
@@ -57,8 +59,9 @@ export function getDailyChallenge(dateStr: string = todayStr()): DailyChallenge 
       kind: 'rarity',
       param: r,
       target: 1,
-      title: `Discover a ${r} item`,
-      description: `Temukan minimal 1 penemuan ber-rarity ${r} hari ini.`,
+      titleKey: 'daily.rarityTitle',
+      descKey: 'daily.rarityDesc',
+      vars: { n: 1, r },
       rewardXp: 100,
       rewardCoins: 30,
       rewardHints: 1,
@@ -70,8 +73,9 @@ export function getDailyChallenge(dateStr: string = todayStr()): DailyChallenge 
     kind: 'any',
     param: '',
     target,
-    title: `Discover ${target} new reactions`,
-    description: `Temukan ${target} penemuan baru hari ini.`,
+    titleKey: 'daily.anyTitle',
+    descKey: 'daily.anyDesc',
+    vars: { n: target },
     rewardXp: 70,
     rewardCoins: 20,
     rewardHints: 1,
