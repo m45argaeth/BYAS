@@ -250,11 +250,11 @@
   }
   button.chamber-slot { font: inherit; color: inherit; width: 100%; cursor: pointer; }
   .chamber-slot.empty span { color: var(--muted); font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: .14em; }
-  .chamber-slot.filled { border-style: solid; border-color: color-mix(in srgb, var(--tier, var(--accent)) 55%, var(--border)); background: linear-gradient(180deg, color-mix(in srgb, var(--tier, var(--accent)) 12%, var(--surface-2)), var(--surface-2)); box-shadow: 0 0 22px -10px color-mix(in srgb, var(--tier, var(--glow)) 65%, transparent); }
+  .chamber-slot.filled { border-style: solid; border-color: color-mix(in srgb, var(--tier, var(--accent)) 60%, var(--border)); background: linear-gradient(165deg, color-mix(in srgb, var(--tier, var(--accent)) 30%, var(--surface-2)) 0%, var(--surface-2) 70%); box-shadow: 0 0 24px -10px color-mix(in srgb, var(--tier, var(--glow)) 70%, transparent); }
   button.chamber-slot.filled:hover { border-color: #fb7185; }
   button.chamber-slot.filled:active { transform: scale(.97); }
   .chamber-slot small { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--muted); font-weight: 800; }
-  .chamber-slot small.is-compound { text-transform: uppercase; letter-spacing: .07em; font-size: 10px; color: color-mix(in srgb, var(--tier, var(--accent)) 75%, var(--text)); }
+  .chamber-slot small.is-compound { text-transform: uppercase; letter-spacing: .07em; font-size: 10px; color: color-mix(in srgb, var(--tier, var(--accent)) 78%, var(--text)); }
   .chamber-slot strong { font-size: 42px; line-height: 1; font-weight: 800; text-align: center; }
   .chamber-slot strong.is-formula { font-size: 26px; letter-spacing: 0; line-height: 1.06; word-break: break-word; overflow-wrap: anywhere; max-width: 94%; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
   .chamber-slot span { max-width: 90%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text); font-size: 12px; font-weight: 700; }
@@ -320,8 +320,13 @@
     flex-direction: column;
     min-height: 120px;
     border-radius: 16px;
-    border: 1px solid color-mix(in srgb, var(--tier, var(--border)) 30%, var(--border));
-    background: linear-gradient(165deg, color-mix(in srgb, var(--tier, #64748b) 15%, var(--surface-2)) 0%, var(--surface-2) 64%);
+    border: 1px solid color-mix(in srgb, var(--tier, var(--border)) 52%, var(--border));
+    background:
+      linear-gradient(150deg,
+        color-mix(in srgb, var(--tier, #64748b) 44%, var(--surface-2)) 0%,
+        color-mix(in srgb, var(--tier, #64748b) 17%, var(--surface-2)) 46%,
+        var(--surface-2) 100%);
+    box-shadow: inset 0 1px 0 color-mix(in srgb, var(--tier, transparent) 35%, transparent), 0 0 20px -14px color-mix(in srgb, var(--tier, transparent) 85%, transparent);
     padding: 11px;
     text-align: left;
     overflow: hidden;
@@ -332,15 +337,15 @@
     content: '';
     position: absolute; inset: 0;
     border-radius: inherit;
-    background: radial-gradient(120% 70% at 50% 0%, color-mix(in srgb, var(--tier, transparent) 30%, transparent), transparent 62%);
-    opacity: .55;
+    background: radial-gradient(135% 88% at 4% 0%, color-mix(in srgb, var(--tier, transparent) 52%, transparent), transparent 56%);
+    opacity: .8;
     pointer-events: none;
   }
-  .specimen-tile:hover { border-color: var(--tier, var(--accent)); transform: translateY(-2px); box-shadow: 0 0 22px -10px color-mix(in srgb, var(--tier, var(--glow)) 60%, transparent); }
+  .specimen-tile:hover { border-color: var(--tier, var(--accent)); transform: translateY(-2px); box-shadow: 0 0 24px -9px color-mix(in srgb, var(--tier, var(--glow)) 70%, transparent); }
   .specimen-tile:active { transform: scale(.97); cursor: grabbing; }
-  .specimen-tile.is-selected { border-color: var(--tier, var(--accent)); box-shadow: 0 0 0 1px var(--tier, var(--accent)), 0 0 24px -8px color-mix(in srgb, var(--tier, var(--glow)) 70%, transparent); }
+  .specimen-tile.is-selected { border-color: var(--tier, var(--accent)); box-shadow: 0 0 0 1px var(--tier, var(--accent)), 0 0 26px -8px color-mix(in srgb, var(--tier, var(--glow)) 75%, transparent); }
   .specimen-number { position: relative; display: block; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--muted); font-size: 11px; font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .specimen-number.is-compound { text-transform: uppercase; letter-spacing: .02em; font-size: 8px; color: color-mix(in srgb, var(--tier, var(--accent)) 78%, var(--text)); }
+  .specimen-number.is-compound { text-transform: uppercase; letter-spacing: .02em; font-size: 8px; color: color-mix(in srgb, var(--tier, var(--accent)) 80%, var(--text)); }
   .specimen-symbol { position: relative; display: flex; align-items: center; flex: 1; min-height: 38px; margin-top: 6px; font-size: 30px; font-weight: 800; line-height: .95; letter-spacing: -.06em; }
   .specimen-symbol.is-formula { font-size: clamp(15px, 4.4vw, 22px); letter-spacing: 0; line-height: 1.08; word-break: break-word; overflow-wrap: anywhere; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
   .specimen-name { position: relative; display: block; margin-top: 8px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; font-weight: 700; }
