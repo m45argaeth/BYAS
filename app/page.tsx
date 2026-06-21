@@ -2,8 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useState, type CSSProperties, type DragEvent } from 'react'
 import Link from 'next/link'
-import { buildStarters, GROUP_COLORS } from '@/lib/elements'
-import type { CombineResult, Discovery, Element, ElementGroup, Stats } from '@/lib/types'
+import { buildStarters, GROUP_COLORS, STARTER_IDS } from '@/lib/elements'
+import type { CombineResult, Discovery, Element, ElementGroup, Lang, Stats } from '@/lib/types'
 import { GameHeader } from '@/components/GameHeader'
 import { BottomNav } from '@/components/BottomNav'
 import { DiscoveryModal } from '@/components/DiscoveryModal'
@@ -20,6 +20,43 @@ import { ACHIEVEMENTS, computeUnlocked, loadSeen, saveSeen } from '@/lib/achieve
 import { RARITY_GLOW } from '@/lib/rarity'
 
 const DEFAULT_STATS: Stats = { currentStreak: 0, bestStreak: 0, lastPlayed: null, displayName: null, hintTokens: 0, coins: 0, bonusXp: 0, failedExperiments: 0 }
+
+// Top-slot label for compound cards (replaces the atomic number). "Senyawa" when
+// both ingredients are base elements; "Senyawa Baru" when a compound was involved.
+const COMPOUND_LABEL: Record<Lang, { base: string; fresh: string }> = {
+  id: { base: 'Senyawa', fresh: 'Senyawa Baru' },
+  en: { base: 'Compound', fresh: 'New Compound' },
+  cn: { base: '\u5316\u5408\u7269', fresh: '\u65b0\u5316\u5408\u7269' },
+}
+
+const SUBSCRIPTS = '\u2080\u2081\u2082\u2083\u2084\u2085\u2086\u2087\u2088\u2089'
+
+// Turn ASCII digits that directly follow an element symbol or a closing paren
+// into proper subscripts (H2O -> H\u2082O, Ca(OH)2 -> Ca(OH)\u2082). Coefficient
+// numbers after a middle dot (e.g. CH4\u00b75.75H2O) are left as-is.
+function formatFormula(f: string): string {
+  return f.replace(/([A-Za-z)])(\d+)/g, (_m, lead: string, digits: string) =>
+    lead + digits.replace(/\d/g, (d) => SUBSCRIPTS[Number(d)]),
+  )
+}
+
+function isElementSpecimen(element: Element): boolean {
+  return element.atomicNumber != null
+}
+
+function isFreshCompound(element: Element): boolean {
+  return !!element.ingredients && element.ingredients.some((id) => !STARTER_IDS.has(id))
+}
+
+function specimenTopLabel(element: Element, lang: Lang): string {
+  if (isElementSpecimen(element)) return String(element.atomicNumber)
+  return isFreshCompound(element) ? COMPOUND_LABEL[lang].fresh : COMPOUND_LABEL[lang].base
+}
+
+function specimenSymbol(element: Element): string {
+  if (isElementSpecimen(element)) return element.id.length <= 3 ? element.id : element.emoji
+  return element.formula ? formatFormula(element.formula) : element.emoji
+}
 
 function haptic(ms: number) {
   try { navigator.vibrate?.(ms) } catch {}
@@ -54,9 +91,12 @@ function ParticleBurst({ particles }: { particles: Particle[] }) {
 }
 
 function SpecimenTile({ element, selected, onSelect, onDragStart }: { element: Element; selected: boolean; onSelect: () => void; onDragStart: (e: DragEvent<HTMLButtonElement>) => void }) {
+  const { lang } = useI18n()
   const group: ElementGroup = element.group ?? 'unknown'
   const colors = GROUP_COLORS[group]
-  const symbol = element.id.length <= 3 ? element.id : element.emoji
+  const isEl = isElementSpecimen(element)
+  const topLabel = specimenTopLabel(element, lang)
+  const symbol = specimenSymbol(element)
   const label = group !== 'unknown'
     ? group.replaceAll('-', ' ')
     : guessCategory({ result: element.name, formula: element.formula, category: element.category })
@@ -74,8 +114,8 @@ function SpecimenTile({ element, selected, onSelect, onDragStart }: { element: E
         '--specimen-border': selected ? colors.glow : 'var(--border)',
       } as CSSProperties}
     >
-      <span className="specimen-number">{element.atomicNumber ?? '∞'}</span>
-      <span className="specimen-symbol">{symbol}</span>
+      <span className={`specimen-number ${isEl ? '' : 'is-compound'}`}>{topLabel}</span>
+      <span className={`specimen-symbol ${isEl ? '' : 'is-formula'}`}>{symbol}</span>
       <span className="specimen-name">{element.name}</span>
       <span className="specimen-group">{label}</span>
     </button>
@@ -83,16 +123,19 @@ function SpecimenTile({ element, selected, onSelect, onDragStart }: { element: E
 }
 
 function ChamberSlot({ element, label, onRemove }: { element?: Element; label: string; onRemove: () => void }) {
+  const { lang } = useI18n()
   if (!element) {
     return <div className="chamber-slot empty"><span>{label}</span></div>
   }
   const group: ElementGroup = element.group ?? 'unknown'
   const colors = GROUP_COLORS[group]
-  const symbol = element.id.length <= 3 ? element.id : element.emoji
+  const isEl = isElementSpecimen(element)
+  const topLabel = specimenTopLabel(element, lang)
+  const symbol = specimenSymbol(element)
   return (
     <button type="button" onClick={onRemove} aria-label={element.name} className="chamber-slot filled" style={{ '--slot-glow': colors.ring } as CSSProperties}>
-      <small>{element.atomicNumber ?? '∞'}</small>
-      <strong>{symbol}</strong>
+      <small className={isEl ? '' : 'is-compound'}>{topLabel}</small>
+      <strong className={isEl ? '' : 'is-formula'}>{symbol}</strong>
       <span>{element.name}</span>
     </button>
   )
@@ -126,7 +169,7 @@ function ReactionChamber({ selected, state, dragOver, onRun, onClear, onDropSpec
           </button>
           {selected.length ? <button type="button" onClick={onClear} className="lab-button">{t('lab.clear')}</button> : null}
         </div>
-        <p className="chamber-hint">{t('lab.hintLead')} <span className="kbd-hint"><kbd>Enter</kbd></span> {t('lab.hintReact')} · <span className="kbd-hint"><kbd>Esc</kbd></span> {t('lab.hintReset')}</p>
+        <p className="chamber-hint">{t('lab.hintLead')} <span className="kbd-hint"><kbd>Enter</kbd></span> {t('lab.hintReact')} \u00b7 <span className="kbd-hint"><kbd>Esc</kbd></span> {t('lab.hintReset')}</p>
       </div>
     </section>
   )
@@ -170,7 +213,7 @@ export default function Home() {
     const map = new Map<string, Element>()
     for (const s of buildStarters(lang)) map.set(s.id, s)
     for (const d of discoveries) {
-      if (!map.has(d.result)) map.set(d.result, { id: d.result, name: discoveryText(d, lang).result, emoji: d.emoji, formula: d.formula ?? undefined, rarity: d.rarity, category: d.category })
+      if (!map.has(d.result)) map.set(d.result, { id: d.result, name: discoveryText(d, lang).result, emoji: d.emoji, formula: d.formula ?? undefined, rarity: d.rarity, category: d.category, ingredients: d.ingredients })
     }
     return Array.from(map.values())
   }, [lang, discoveries])
@@ -279,13 +322,13 @@ export default function Home() {
       <ParticleBurst particles={particles} />
 
       <aside className="rail">
-        <Link href="/" className="rail-brand" aria-label="BYAS Lab">🧪</Link>
+        <Link href="/" className="rail-brand" aria-label="BYAS Lab">\ud83e\uddea</Link>
         <nav className="rail-nav">
-          <Link href="/" className="rail-btn is-active" aria-label={t('nav.lab')} aria-current="page">🧪</Link>
-          <Link href="/quest" className="rail-btn" aria-label={t('nav.quest')}>🎯</Link>
-          <Link href="/progress" className="rail-btn" aria-label={t('nav.progress')}>📊</Link>
-          <Link href="/leaderboard" className="rail-btn" aria-label={t('nav.ranks')}>🏆</Link>
-          <Link href="/account" className="rail-btn" aria-label={t('nav.account')}>👤</Link>
+          <Link href="/" className="rail-btn is-active" aria-label={t('nav.lab')} aria-current="page">\ud83e\uddea</Link>
+          <Link href="/quest" className="rail-btn" aria-label={t('nav.quest')}>\ud83c\udfaf</Link>
+          <Link href="/progress" className="rail-btn" aria-label={t('nav.progress')}>\ud83d\udcca</Link>
+          <Link href="/leaderboard" className="rail-btn" aria-label={t('nav.ranks')}>\ud83c\udfc6</Link>
+          <Link href="/account" className="rail-btn" aria-label={t('nav.account')}>\ud83d\udc64</Link>
         </nav>
       </aside>
 
