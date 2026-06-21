@@ -5,9 +5,11 @@ import { GameHeader } from '@/components/GameHeader'
 import { BottomNav } from '@/components/BottomNav'
 import { DailyResearchPanel, MysteryResearchPanel, WeeklyQuestPanel } from '@/components/panels'
 import { useGameData } from '@/lib/useGameData'
+import { useI18n } from '@/lib/i18n'
 
 export default function QuestPage() {
   const { discoveries, stats, msg, claimDaily, claimWeekly, claimMystery, useMysteryHint } = useGameData()
+  const { t } = useI18n()
   return (
     <>
       <GameHeader discoveries={discoveries} stats={stats} eyebrow="BYAS · Quests" />
@@ -15,10 +17,10 @@ export default function QuestPage() {
         <header className="flex items-center justify-between gap-3">
           <div className="min-w-0">
             <p className="lab-eyebrow">BYAS · Quests</p>
-            <h1 className="truncate text-2xl font-black tracking-tight">🎯 Quests</h1>
-            <p className="mt-0.5 text-xs text-muted">Daily, mystery, dan weekly challenge.</p>
+            <h1 className="truncate text-2xl font-black tracking-tight">🎯 {t('quest.title')}</h1>
+            <p className="mt-0.5 text-xs text-muted">{t('quest.sub')}</p>
           </div>
-          <Link href="/" className="lab-button shrink-0">Lab</Link>
+          <Link href="/" className="lab-button shrink-0">{t('nav.lab')}</Link>
         </header>
         <DailyResearchPanel discoveries={discoveries} stats={stats} onClaim={claimDaily} />
         <MysteryResearchPanel discoveries={discoveries} stats={stats} onClaim={claimMystery} onUseHint={useMysteryHint} />
