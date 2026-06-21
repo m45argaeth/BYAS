@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import OpenAI from 'openai'
 import { makeInputKey, getCachedCombo, saveComboLang } from '@/lib/cache'
+import { lookupRecipe } from '@/lib/discoveryLookup'
 import { resolveKeys, markRateLimited } from '@/lib/mimoKeys'
 import type { CombineResult, Lang, LocalizedText, MasteryCategory, Rarity } from '@/lib/types'
 
@@ -51,6 +52,13 @@ export async function POST(req: NextRequest) {
   const aName = String(body.aName ?? aId).trim()
   const bName = String(body.bName ?? bId).trim()
   if (!aId || !bId) return NextResponse.json({ error: 'bad_request' }, { status: 400 })
+
+  // 1) Source of truth: DB discovery yang sudah di-generate (instan, gratis, deterministik).
+  //    Miss -> jatuh ke cache + Mimo di bawah, jadi behavior lama tetap utuh.
+  try {
+    const canonical = await lookupRecipe(aId, bId)
+    if (canonical) return NextResponse.json(canonical)
+  } catch {}
 
   const baseKey = makeInputKey([aId, bId])
   const cached = await getCachedCombo(baseKey)
@@ -127,7 +135,7 @@ export async function POST(req: NextRequest) {
       const difficulty = Math.max(1, Math.min(5, Number(parsed.difficulty ?? 1)))
       const reacted = parsed.reacted !== false
       const formula = parsed.formula ? String(parsed.formula) : null
-      const emoji = String(parsed.emoji ?? '✨')
+      const emoji = String(parsed.emoji ?? '\u2728')
 
       const raw = (parsed.text && typeof parsed.text === 'object' ? parsed.text : {}) as Record<string, unknown>
       const texts: Record<Lang, LocalizedText> = {
