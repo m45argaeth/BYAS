@@ -9,7 +9,7 @@ import { BottomNav } from '@/components/BottomNav'
 import { DiscoveryModal } from '@/components/DiscoveryModal'
 import { AchievementToast } from '@/components/AchievementToast'
 import { MIMO_KEY, saveDiscovery, loadDiscoveries, loadStats, saveStats } from '@/lib/storage'
-import { levelProgress, recordPlay, totalXp, xpForNewDiscovery } from '@/lib/progress'
+import { guessCategory, levelProgress, recordPlay, totalXp, xpForNewDiscovery } from '@/lib/progress'
 import { useAuth } from '@/lib/useAuth'
 import { syncDiscoveries, syncStats } from '@/lib/sync'
 import { pushCloudDiscovery, pushStats, pushTotalXp } from '@/lib/cloud'
@@ -57,6 +57,9 @@ function SpecimenTile({ element, selected, onSelect, onDragStart }: { element: E
   const group: ElementGroup = element.group ?? 'unknown'
   const colors = GROUP_COLORS[group]
   const symbol = element.id.length <= 3 ? element.id : element.emoji
+  const label = group !== 'unknown'
+    ? group.replaceAll('-', ' ')
+    : guessCategory({ result: element.name, formula: element.formula, category: element.category })
   return (
     <button
       type="button"
@@ -74,7 +77,7 @@ function SpecimenTile({ element, selected, onSelect, onDragStart }: { element: E
       <span className="specimen-number">{element.atomicNumber ?? '∞'}</span>
       <span className="specimen-symbol">{symbol}</span>
       <span className="specimen-name">{element.name}</span>
-      <span className="specimen-group">{group.replaceAll('-', ' ')}</span>
+      <span className="specimen-group">{label}</span>
     </button>
   )
 }
