@@ -245,7 +245,9 @@
   button.chamber-slot.filled:hover { border-color: #fb7185; }
   button.chamber-slot.filled:active { transform: scale(.97); }
   .chamber-slot small { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--muted); font-weight: 800; }
+  .chamber-slot small.is-compound { text-transform: uppercase; letter-spacing: .08em; font-size: 10px; color: var(--accent); }
   .chamber-slot strong { font-size: 42px; line-height: 1; font-weight: 800; }
+  .chamber-slot strong.is-formula { font-size: 26px; letter-spacing: 0; line-height: 1.06; word-break: break-word; overflow-wrap: anywhere; max-width: 94%; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
   .chamber-slot span { max-width: 90%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text); font-size: 12px; font-weight: 700; }
   .chamber-hint { margin-top: 14px; font-size: 11px; font-weight: 600; letter-spacing: .04em; color: var(--muted); }
   .chamber-step {
@@ -294,7 +296,9 @@
   .specimen-tile:active { transform: scale(.97); cursor: grabbing; }
   .specimen-tile.is-selected { border-color: var(--accent); box-shadow: 0 0 22px -10px var(--glow); }
   .specimen-number { position: relative; display: block; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--muted); font-size: 11px; font-weight: 800; }
+  .specimen-number.is-compound { text-transform: uppercase; letter-spacing: .06em; font-size: 8.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--accent); }
   .specimen-symbol { position: relative; display: block; margin-top: 8px; font-size: 30px; font-weight: 800; line-height: .95; letter-spacing: -.06em; }
+  .specimen-symbol.is-formula { margin-top: 10px; font-size: clamp(15px, 4.4vw, 22px); letter-spacing: 0; line-height: 1.08; word-break: break-word; overflow-wrap: anywhere; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
   .specimen-name { position: relative; display: block; margin-top: 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; font-weight: 700; }
   .specimen-group { position: relative; display: block; margin-top: 3px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: .1em; }
 
