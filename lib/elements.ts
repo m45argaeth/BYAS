@@ -11,13 +11,18 @@ interface StarterDef {
   names: Record<Lang, string>
 }
 
+// 8-element starter pack: H O C N Si Fe S P.
+// Chosen so players can chain toward advanced/space-age materials
+// (silicon -> chips/glass, iron -> alloys/steel, phosphorus -> energy/bio).
 export const STARTER_DEFS: StarterDef[] = [
   { id: 'H', atomicNumber: 1, emoji: '🎈', formula: 'H', group: 'nonmetal', category: 'gases', period: 1, names: { id: 'Hidrogen', en: 'Hydrogen', cn: '氢' } },
   { id: 'O', atomicNumber: 8, emoji: '💨', formula: 'O', group: 'nonmetal', category: 'gases', period: 2, names: { id: 'Oksigen', en: 'Oxygen', cn: '氧' } },
   { id: 'C', atomicNumber: 6, emoji: '💎', formula: 'C', group: 'nonmetal', category: 'organic', period: 2, names: { id: 'Karbon', en: 'Carbon', cn: '碳' } },
   { id: 'N', atomicNumber: 7, emoji: '🌬️', formula: 'N', group: 'nonmetal', category: 'gases', period: 2, names: { id: 'Nitrogen', en: 'Nitrogen', cn: '氮' } },
+  { id: 'Si', atomicNumber: 14, emoji: '🪨', formula: 'Si', group: 'metalloid', category: 'industrial', period: 3, names: { id: 'Silikon', en: 'Silicon', cn: '硅' } },
+  { id: 'Fe', atomicNumber: 26, emoji: '🧲', formula: 'Fe', group: 'transition-metal', category: 'metals', period: 4, names: { id: 'Besi', en: 'Iron', cn: '铁' } },
   { id: 'S', atomicNumber: 16, emoji: '🟡', formula: 'S', group: 'nonmetal', category: 'inorganic', period: 3, names: { id: 'Sulfur', en: 'Sulfur', cn: '硫' } },
-  { id: 'Na', atomicNumber: 11, emoji: '🧂', formula: 'Na', group: 'alkali-metal', category: 'metals', period: 3, names: { id: 'Natrium', en: 'Sodium', cn: '钠' } },
+  { id: 'P', atomicNumber: 15, emoji: '🔥', formula: 'P', group: 'nonmetal', category: 'biology', period: 3, names: { id: 'Fosfor', en: 'Phosphorus', cn: '磷' } },
 ]
 
 export const STARTER_IDS = new Set(STARTER_DEFS.map((d) => d.id))
