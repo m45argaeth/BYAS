@@ -2,10 +2,12 @@ import type { Discovery, Lang, LocalizedText, MasteryCategory, Rarity, Stats } f
 import { getSupabaseBrowser } from './supabaseBrowser'
 
 const COLS_BASE = 'result, formula, emoji, explanation, fun_fact, rarity, discovered_at, category, difficulty, xp, hint, ingredients'
-const COLS = COLS_BASE + ', i18n'
+// v3 adds i18n, tier and progression. These are optional columns; reads fall
+// back to COLS_BASE and writes retry without them if the DB isn't migrated yet.
+const COLS = COLS_BASE + ', i18n, tier, progression'
 const STAT_COLS = 'current_streak, best_streak, last_played, display_name, total_xp, bonus_xp, coins, hint_tokens, lab_reputation, completed_daily_challenges, completed_weekly_quests, claimed_streak_rewards, solved_mysteries, mystery_hints_used, failed_experiments'
 const RARITIES: Rarity[] = ['common', 'uncommon', 'rare', 'epic', 'legendary', 'mythic']
-const CATEGORIES: MasteryCategory[] = ['organic', 'inorganic', 'metals', 'gases', 'biology', 'energy', 'industrial']
+const CATEGORIES: MasteryCategory[] = ['chemistry', 'materials', 'geology', 'biology', 'knowledge', 'technology', 'civilization', 'space']
 
 function safeRarity(value: unknown): Rarity {
   return RARITIES.includes(value as Rarity) ? (value as Rarity) : 'common'
@@ -13,6 +15,11 @@ function safeRarity(value: unknown): Rarity {
 
 function safeCategory(value: unknown): MasteryCategory | undefined {
   return CATEGORIES.includes(value as MasteryCategory) ? (value as MasteryCategory) : undefined
+}
+
+function safeTier(value: unknown): number | undefined {
+  const n = Number(value)
+  return Number.isFinite(n) && n >= 1 && n <= 15 ? Math.round(n) : undefined
 }
 
 function arr<T = unknown>(value: unknown): T[] {
@@ -29,27 +36,29 @@ function toRow(userId: string, d: Discovery) {
     fun_fact: d.fun_fact,
     rarity: d.rarity,
     category: d.category,
+    tier: d.tier,
     difficulty: d.difficulty,
     xp: d.xp,
     hint: d.hint,
+    progression: d.progression,
     ingredients: d.ingredients ?? [],
     i18n: d.i18n ?? null,
     discovered_at: new Date(d.discoveredAt).toISOString(),
   }
 }
 
-function stripI18n(row: ReturnType<typeof toRow>) {
-  const { i18n, ...rest } = row
+function stripExtra(row: ReturnType<typeof toRow>) {
+  const { i18n, tier, progression, ...rest } = row
   return rest
 }
 
-// Upsert that tolerates databases where the optional `i18n` column hasn't been
-// added yet: it retries once without that field.
+// Upsert that tolerates databases where the optional v3 columns (i18n, tier,
+// progression) haven't been added yet: it retries once without those fields.
 async function upsertRows(sb: ReturnType<typeof getSupabaseBrowser>, rows: ReturnType<typeof toRow>[]) {
   if (!sb) return
   const res = await sb.from('user_discoveries').upsert(rows, { onConflict: 'user_id,result' })
   if (res.error) {
-    await sb.from('user_discoveries').upsert(rows.map(stripI18n), { onConflict: 'user_id,result' })
+    await sb.from('user_discoveries').upsert(rows.map(stripExtra), { onConflict: 'user_id,result' })
   }
 }
 
@@ -68,9 +77,11 @@ export async function pullCloudDiscoveries(userId: string): Promise<Discovery[]>
     fun_fact: r.fun_fact ?? '',
     rarity: safeRarity(r.rarity),
     category: safeCategory(r.category),
+    tier: safeTier(r.tier),
     difficulty: r.difficulty ?? undefined,
     xp: r.xp ?? undefined,
     hint: r.hint ?? undefined,
+    progression: r.progression ?? undefined,
     ingredients: Array.isArray(r.ingredients) ? r.ingredients : undefined,
     i18n: (r.i18n as Partial<Record<Lang, LocalizedText>>) ?? undefined,
     reacted: true,
