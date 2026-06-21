@@ -9,6 +9,7 @@ const COMMON = {
 export const EN: Record<string, string> = {
   ...COMMON,
   ...LAB_EN,
+  'discovery.progression': 'Why it matters',
   'combine.button': 'Combine',
   'combine.loading': 'Reacting...',
   'combine.noReaction': '{a} + {b} → no reaction 🚫',
@@ -100,6 +101,7 @@ export const EN: Record<string, string> = {
 export const ID: Record<string, string> = {
   ...COMMON,
   ...LAB_ID,
+  'discovery.progression': 'Kenapa penting',
   'rarity.epic': 'Epik',
   'rarity.mythic': 'Mythic',
   'combine.button': 'Combine',
@@ -193,6 +195,7 @@ export const ID: Record<string, string> = {
 export const CN: Record<string, string> = {
   ...COMMON,
   ...LAB_CN,
+  'discovery.progression': '为何重要',
   'rarity.epic': '史诗',
   'rarity.mythic': '神话',
   'combine.button': '合成',
