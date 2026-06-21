@@ -116,6 +116,18 @@ export const LAB_EN: Record<string, string> = {
   'mystery.h5': 'I belong to the Gases category.',
   'mystery.r6': 'I appear rarely, only for persistent researchers.',
   'mystery.h6': 'My rarity is at least Rare.',
+  'mystery.r7': 'I am the lightest of all, the most abundant across the cosmos.',
+  'mystery.h7': 'My compound contains Hydrogen (H).',
+  'mystery.r8': 'I form the sugars, fuels, and molecules of living things.',
+  'mystery.h8': 'I belong to the Organic category.',
+  'mystery.r9': 'I am released as heat, light, and raw power.',
+  'mystery.h9': 'I belong to the Energy category.',
+  'mystery.r10': 'Only a refined hand uncovers me — brilliant and uncommon.',
+  'mystery.h10': 'My rarity is at least Epic.',
+  'mystery.r11': 'I rust in the rain, yet I hold up entire cities.',
+  'mystery.h11': 'My compound contains Iron (Fe).',
+  'mystery.r12': 'I am the stuff of cells, proteins, and life itself.',
+  'mystery.h12': 'I belong to the Biology category.',
 }
 
 export const LAB_ID: Record<string, string> = {
@@ -234,6 +246,18 @@ export const LAB_ID: Record<string, string> = {
   'mystery.h5': 'Aku termasuk kategori Gas.',
   'mystery.r6': 'Aku jarang muncul, hanya bagi peneliti yang gigih.',
   'mystery.h6': 'Rarity-ku setidaknya Rare.',
+  'mystery.r7': 'Aku yang paling ringan, dan paling melimpah di seluruh alam semesta.',
+  'mystery.h7': 'Senyawaku mengandung Hidrogen (H).',
+  'mystery.r8': 'Aku membentuk gula, bahan bakar, dan molekul makhluk hidup.',
+  'mystery.h8': 'Aku termasuk kategori Organik.',
+  'mystery.r9': 'Aku dilepaskan sebagai panas, cahaya, dan tenaga.',
+  'mystery.h9': 'Aku termasuk kategori Energi.',
+  'mystery.r10': 'Hanya tangan terlatih yang menemukanku — cemerlang dan langka.',
+  'mystery.h10': 'Rarity-ku setidaknya Epic.',
+  'mystery.r11': 'Aku berkarat saat hujan, namun menyangga seluruh kota.',
+  'mystery.h11': 'Senyawaku mengandung Besi (Fe).',
+  'mystery.r12': 'Aku adalah bahan penyusun sel, protein, dan kehidupan itu sendiri.',
+  'mystery.h12': 'Aku termasuk kategori Biologi.',
 }
 
 export const LAB_CN: Record<string, string> = {
@@ -352,6 +376,18 @@ export const LAB_CN: Record<string, string> = {
   'mystery.h5': '我属于气体类。',
   'mystery.r6': '我很少出现，只为坚持不懈的研究者。',
   'mystery.h6': '我的稀有度至少是 Rare。',
+  'mystery.r7': '我是最轻的，也是整个宇宙中最丰富的。',
+  'mystery.h7': '我的化合物含有氢（H）。',
+  'mystery.r8': '我构成糖类、燃料和生命的分子。',
+  'mystery.h8': '我属于有机类。',
+  'mystery.r9': '我以热、光和能量的形式释放。',
+  'mystery.h9': '我属于能量类。',
+  'mystery.r10': '只有精炼之手才能发现我 — 璨璨而稀有。',
+  'mystery.h10': '我的稀有度至少是 Epic。',
+  'mystery.r11': '我在雨中生锈，却撑起整座城市。',
+  'mystery.h11': '我的化合物含有铁（Fe）。',
+  'mystery.r12': '我是细胞、蛋白质和生命本身的构成物。',
+  'mystery.h12': '我属于生物类。',
 }
 
 export const LAB: Record<Lang, Record<string, string>> = { en: LAB_EN, id: LAB_ID, cn: LAB_CN }
