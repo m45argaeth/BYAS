@@ -1,7 +1,8 @@
-import type { Discovery, MasteryCategory, Rarity, Stats } from './types'
+import type { Discovery, Lang, LocalizedText, MasteryCategory, Rarity, Stats } from './types'
 import { getSupabaseBrowser } from './supabaseBrowser'
 
-const COLS = 'result, formula, emoji, explanation, fun_fact, rarity, discovered_at, category, difficulty, xp, hint, ingredients'
+const COLS_BASE = 'result, formula, emoji, explanation, fun_fact, rarity, discovered_at, category, difficulty, xp, hint, ingredients'
+const COLS = COLS_BASE + ', i18n'
 const STAT_COLS = 'current_streak, best_streak, last_played, display_name, total_xp, bonus_xp, coins, hint_tokens, lab_reputation, completed_daily_challenges, completed_weekly_quests, claimed_streak_rewards, solved_mysteries, mystery_hints_used, failed_experiments'
 const RARITIES: Rarity[] = ['common', 'uncommon', 'rare', 'epic', 'legendary', 'mythic']
 const CATEGORIES: MasteryCategory[] = ['organic', 'inorganic', 'metals', 'gases', 'biology', 'energy', 'industrial']
@@ -32,16 +33,34 @@ function toRow(userId: string, d: Discovery) {
     xp: d.xp,
     hint: d.hint,
     ingredients: d.ingredients ?? [],
+    i18n: d.i18n ?? null,
     discovered_at: new Date(d.discoveredAt).toISOString(),
+  }
+}
+
+function stripI18n(row: ReturnType<typeof toRow>) {
+  const { i18n, ...rest } = row
+  return rest
+}
+
+// Upsert that tolerates databases where the optional `i18n` column hasn't been
+// added yet: it retries once without that field.
+async function upsertRows(sb: ReturnType<typeof getSupabaseBrowser>, rows: ReturnType<typeof toRow>[]) {
+  if (!sb) return
+  const res = await sb.from('user_discoveries').upsert(rows, { onConflict: 'user_id,result' })
+  if (res.error) {
+    await sb.from('user_discoveries').upsert(rows.map(stripI18n), { onConflict: 'user_id,result' })
   }
 }
 
 export async function pullCloudDiscoveries(userId: string): Promise<Discovery[]> {
   const sb = getSupabaseBrowser()
   if (!sb) return []
-  const { data, error } = await sb.from('user_discoveries').select(COLS).eq('user_id', userId)
+  let res: any = await sb.from('user_discoveries').select(COLS).eq('user_id', userId)
+  if (res.error) res = await sb.from('user_discoveries').select(COLS_BASE).eq('user_id', userId)
+  const { data, error } = res
   if (error || !data) return []
-  return data.map((r: any) => ({
+  return (data as any[]).map((r: any) => ({
     result: r.result,
     formula: r.formula ?? null,
     emoji: r.emoji ?? '✨',
@@ -53,6 +72,7 @@ export async function pullCloudDiscoveries(userId: string): Promise<Discovery[]>
     xp: r.xp ?? undefined,
     hint: r.hint ?? undefined,
     ingredients: Array.isArray(r.ingredients) ? r.ingredients : undefined,
+    i18n: (r.i18n as Partial<Record<Lang, LocalizedText>>) ?? undefined,
     reacted: true,
     discoveredAt: r.discovered_at ? new Date(r.discovered_at).getTime() : Date.now(),
   }))
@@ -61,16 +81,13 @@ export async function pullCloudDiscoveries(userId: string): Promise<Discovery[]>
 export async function pushCloudDiscovery(userId: string, d: Discovery): Promise<void> {
   const sb = getSupabaseBrowser()
   if (!sb) return
-  await sb.from('user_discoveries').upsert(toRow(userId, d), { onConflict: 'user_id,result' })
+  await upsertRows(sb, [toRow(userId, d)])
 }
 
 export async function pushManyCloudDiscoveries(userId: string, ds: Discovery[]): Promise<void> {
   const sb = getSupabaseBrowser()
   if (!sb || !ds.length) return
-  await sb.from('user_discoveries').upsert(
-    ds.map((d) => toRow(userId, d)),
-    { onConflict: 'user_id,result' },
-  )
+  await upsertRows(sb, ds.map((d) => toRow(userId, d)))
 }
 
 // ---- Stats ----
@@ -84,22 +101,23 @@ export async function pullStats(userId: string): Promise<Stats | null> {
     .eq('user_id', userId)
     .maybeSingle()
   if (error || !data) return null
+  const d = data as any
   return {
-    currentStreak: data.current_streak ?? 0,
-    bestStreak: data.best_streak ?? 0,
-    lastPlayed: data.last_played ?? null,
-    displayName: data.display_name ?? null,
-    totalXp: data.total_xp ?? 0,
-    bonusXp: data.bonus_xp ?? 0,
-    coins: data.coins ?? 0,
-    hintTokens: data.hint_tokens ?? 0,
-    labReputation: data.lab_reputation ?? 0,
-    completedDailyChallenges: arr<string>(data.completed_daily_challenges),
-    completedWeeklyQuests: arr<string>(data.completed_weekly_quests),
-    claimedStreakRewards: arr<number>(data.claimed_streak_rewards),
-    solvedMysteries: arr<string>(data.solved_mysteries),
-    mysteryHintsUsed: arr<string>(data.mystery_hints_used),
-    failedExperiments: data.failed_experiments ?? 0,
+    currentStreak: d.current_streak ?? 0,
+    bestStreak: d.best_streak ?? 0,
+    lastPlayed: d.last_played ?? null,
+    displayName: d.display_name ?? null,
+    totalXp: d.total_xp ?? 0,
+    bonusXp: d.bonus_xp ?? 0,
+    coins: d.coins ?? 0,
+    hintTokens: d.hint_tokens ?? 0,
+    labReputation: d.lab_reputation ?? 0,
+    completedDailyChallenges: arr<string>(d.completed_daily_challenges),
+    completedWeeklyQuests: arr<string>(d.completed_weekly_quests),
+    claimedStreakRewards: arr<number>(d.claimed_streak_rewards),
+    solvedMysteries: arr<string>(d.solved_mysteries),
+    mysteryHintsUsed: arr<string>(d.mystery_hints_used),
+    failedExperiments: d.failed_experiments ?? 0,
   }
 }
 
@@ -168,7 +186,7 @@ export async function pullLeaderboard(limit = 50): Promise<LeaderboardEntry[]> {
     .order('total_xp', { ascending: false })
     .limit(limit)
   if (error || !data) return []
-  return data.map((r: any) => ({
+  return (data as any[]).map((r: any) => ({
     userId: r.user_id,
     displayName: r.display_name ?? null,
     totalXp: r.total_xp ?? 0,

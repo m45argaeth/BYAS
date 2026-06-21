@@ -93,8 +93,8 @@ export function isStreakReached(days: number, stats: Stats): boolean {
 // ===================== Mystery Research =====================
 export interface Mystery {
   id: string
-  riddle: string
-  hint: string
+  riddleKey: string
+  hintKey: string
   kind: 'element' | 'rarity' | 'category'
   param: string
   rewardXp: number
@@ -102,12 +102,18 @@ export interface Mystery {
 }
 
 const MYSTERY_POOL: Array<Omit<Mystery, 'id' | 'rewardXp' | 'rewardCoins'>> = [
-  { riddle: 'Aku mengalir di lautan dan turun dari langit.', hint: 'Senyawaku mengandung Oksigen (O).', kind: 'element', param: 'O' },
-  { riddle: 'Aku berkilau, ditempa menjadi perkakas dan mesin.', hint: 'Aku termasuk kategori Logam.', kind: 'category', param: 'metals' },
-  { riddle: 'Aku adalah tulang punggung dari kehidupan organik.', hint: 'Senyawaku mengandung Karbon (C).', kind: 'element', param: 'C' },
-  { riddle: 'Aku mendominasi udara yang kau hirup setiap saat.', hint: 'Senyawaku mengandung Nitrogen (N).', kind: 'element', param: 'N' },
-  { riddle: 'Aku tak terlihat, namun memenuhi setiap ruang kosong.', hint: 'Aku termasuk kategori Gas.', kind: 'category', param: 'gases' },
-  { riddle: 'Aku jarang muncul, hanya bagi peneliti yang gigih.', hint: 'Rarity-ku setidaknya Rare.', kind: 'rarity', param: 'rare' },
+  { riddleKey: 'mystery.r1', hintKey: 'mystery.h1', kind: 'element', param: 'O' },
+  { riddleKey: 'mystery.r2', hintKey: 'mystery.h2', kind: 'category', param: 'metals' },
+  { riddleKey: 'mystery.r3', hintKey: 'mystery.h3', kind: 'element', param: 'C' },
+  { riddleKey: 'mystery.r4', hintKey: 'mystery.h4', kind: 'element', param: 'N' },
+  { riddleKey: 'mystery.r5', hintKey: 'mystery.h5', kind: 'category', param: 'gases' },
+  { riddleKey: 'mystery.r6', hintKey: 'mystery.h6', kind: 'rarity', param: 'rare' },
+  { riddleKey: 'mystery.r7', hintKey: 'mystery.h7', kind: 'element', param: 'H' },
+  { riddleKey: 'mystery.r8', hintKey: 'mystery.h8', kind: 'category', param: 'organic' },
+  { riddleKey: 'mystery.r9', hintKey: 'mystery.h9', kind: 'category', param: 'energy' },
+  { riddleKey: 'mystery.r10', hintKey: 'mystery.h10', kind: 'rarity', param: 'epic' },
+  { riddleKey: 'mystery.r11', hintKey: 'mystery.h11', kind: 'element', param: 'Fe' },
+  { riddleKey: 'mystery.r12', hintKey: 'mystery.h12', kind: 'category', param: 'biology' },
 ]
 
 export function getMystery(dateStr: string = todayStr()): Mystery {

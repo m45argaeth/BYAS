@@ -1,4 +1,5 @@
 import type { Lang } from './types'
+import { LAB_EN, LAB_ID, LAB_CN } from './i18n-lab'
 
 const COMMON = {
   'rarity.epic': 'Epic',
@@ -7,6 +8,7 @@ const COMMON = {
 
 export const EN: Record<string, string> = {
   ...COMMON,
+  ...LAB_EN,
   'combine.button': 'Combine',
   'combine.loading': 'Reacting...',
   'combine.noReaction': '{a} + {b} → no reaction 🚫',
@@ -97,6 +99,7 @@ export const EN: Record<string, string> = {
 
 export const ID: Record<string, string> = {
   ...COMMON,
+  ...LAB_ID,
   'rarity.epic': 'Epik',
   'rarity.mythic': 'Mythic',
   'combine.button': 'Combine',
@@ -189,6 +192,7 @@ export const ID: Record<string, string> = {
 
 export const CN: Record<string, string> = {
   ...COMMON,
+  ...LAB_CN,
   'rarity.epic': '史诗',
   'rarity.mythic': '神话',
   'combine.button': '合成',

@@ -1,8 +1,9 @@
 import { getSupabaseAdmin } from './supabase'
-import type { CombineResult, MasteryCategory, Rarity } from './types'
+import type { CombineResult, Lang, LocalizedText, MasteryCategory, Rarity } from './types'
 
 const RARITIES: Rarity[] = ['common', 'uncommon', 'rare', 'epic', 'legendary', 'mythic']
 const CATEGORIES: MasteryCategory[] = ['organic', 'inorganic', 'metals', 'gases', 'biology', 'energy', 'industrial']
+const LANGS: Lang[] = ['id', 'en', 'cn']
 
 function safeRarity(value: unknown): Rarity {
   return RARITIES.includes(value as Rarity) ? (value as Rarity) : 'common'
@@ -12,7 +13,8 @@ function safeCategory(value: unknown): MasteryCategory | undefined {
   return CATEGORIES.includes(value as MasteryCategory) ? (value as MasteryCategory) : undefined
 }
 
-// Build a stable, order-independent key for a pair of element ids.
+// Build a stable, order-independent base key for a pair of element ids.
+// Each language is stored as a separate row keyed `${baseKey}:${lang}`.
 export function makeInputKey(parts: string[]): string {
   return parts
     .map((p) => p.trim().toLowerCase())
@@ -20,41 +22,77 @@ export function makeInputKey(parts: string[]): string {
     .join('+')
 }
 
-export async function getCachedCombo(inputKey: string): Promise<CombineResult | null> {
+// Returns a fully multilingual combo only when ALL languages are cached.
+// Otherwise null, so the route regenerates and back-fills every language.
+export async function getCachedCombo(baseKey: string): Promise<CombineResult | null> {
   const sb = getSupabaseAdmin()
   if (!sb) return null
   try {
+    const keys = LANGS.map((l) => `${baseKey}:${l}`)
     const { data, error } = await sb
       .from('combinations')
-      .select('result, formula, emoji, explanation, fun_fact, rarity, reacted, category, difficulty, hint, ingredients')
-      .eq('input_key', inputKey)
-      .maybeSingle()
+      .select('input_key, result, formula, emoji, explanation, fun_fact, rarity, reacted, category, difficulty, hint, ingredients')
+      .in('input_key', keys)
     if (error || !data) return null
+    const byLang: Record<string, any> = {}
+    for (const row of data) {
+      const lang = String(row.input_key).split(':').pop() as string
+      byLang[lang] = row
+    }
+    if (!LANGS.every((l) => byLang[l])) return null
+    const base = byLang.en ?? byLang.id ?? data[0]
+    const i18n: Partial<Record<Lang, LocalizedText>> = {}
+    for (const l of LANGS) {
+      const r = byLang[l]
+      i18n[l] = {
+        result: r.result,
+        explanation: r.explanation ?? '',
+        fun_fact: r.fun_fact ?? '',
+        hint: r.hint ?? undefined,
+      }
+    }
     return {
-      result: data.result,
-      formula: data.formula ?? null,
-      emoji: data.emoji ?? '✨',
-      explanation: data.explanation ?? '',
-      fun_fact: data.fun_fact ?? '',
-      rarity: safeRarity(data.rarity),
-      category: safeCategory(data.category),
-      difficulty: data.difficulty ?? undefined,
-      hint: data.hint ?? undefined,
-      ingredients: Array.isArray(data.ingredients) ? data.ingredients : undefined,
-      reacted: data.reacted !== false,
+      result: base.result,
+      formula: base.formula ?? null,
+      emoji: base.emoji ?? '✨',
+      explanation: base.explanation ?? '',
+      fun_fact: base.fun_fact ?? '',
+      rarity: safeRarity(base.rarity),
+      category: safeCategory(base.category),
+      difficulty: base.difficulty ?? undefined,
+      hint: base.hint ?? undefined,
+      ingredients: Array.isArray(base.ingredients) ? base.ingredients : undefined,
+      reacted: base.reacted !== false,
+      i18n,
     }
   } catch {
     return null
   }
 }
 
-export async function saveCombo(inputKey: string, r: CombineResult): Promise<void> {
+export interface ComboLangRow {
+  result: string
+  formula: string | null
+  emoji: string
+  explanation: string
+  fun_fact: string
+  rarity: Rarity
+  reacted: boolean
+  category?: MasteryCategory
+  difficulty?: number
+  hint?: string
+  ingredients?: string[]
+}
+
+// Save one language row for a combo. Called once per language so the next lookup
+// is an instant cache hit in every language.
+export async function saveComboLang(baseKey: string, lang: Lang, r: ComboLangRow): Promise<void> {
   const sb = getSupabaseAdmin()
   if (!sb) return
   try {
     await sb.from('combinations').upsert(
       {
-        input_key: inputKey,
+        input_key: `${baseKey}:${lang}`,
         result: r.result,
         formula: r.formula,
         emoji: r.emoji,

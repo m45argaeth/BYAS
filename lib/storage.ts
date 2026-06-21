@@ -1,4 +1,5 @@
 import type { Discovery, Stats } from './types'
+import { discoveryKey } from './localize'
 
 // Kunci localStorage dipakai bareng antar halaman.
 export const INV_KEY = 'byas_inventory'
@@ -23,12 +24,14 @@ export function loadDiscoveries(): Discovery[] {
   }
 }
 
-// Simpan penemuan baru (dedup berdasarkan nama hasil). Return true kalau benar-benar baru.
+// Simpan penemuan baru. Dedup berdasarkan identitas bahan (bukan nama hasil yang
+// bisa berbeda antar bahasa). Return true kalau benar-benar baru.
 export function saveDiscovery(d: Discovery): boolean {
   if (typeof window === 'undefined') return false
   try {
     const all = loadDiscoveries()
-    if (all.some((x) => x.result.toLowerCase() === d.result.toLowerCase())) return false
+    const key = discoveryKey(d)
+    if (all.some((x) => discoveryKey(x) === key)) return false
     all.push(d)
     localStorage.setItem(DISCOVERIES_KEY, JSON.stringify(all))
     return true

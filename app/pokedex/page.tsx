@@ -8,11 +8,14 @@ import { syncDiscoveries } from '@/lib/sync'
 import { useAuth } from '@/lib/useAuth'
 import { RARITY_ORDER, RARITY_TEXT } from '@/lib/rarity'
 import { DiscoveryModal } from '@/components/DiscoveryModal'
+import { GameHeader } from '@/components/GameHeader'
+import { BottomNav } from '@/components/BottomNav'
 import { useI18n } from '@/lib/i18n'
+import { discoveryText } from '@/lib/localize'
 
 export default function PokedexPage() {
   const { user } = useAuth()
-  const { t } = useI18n()
+  const { t, lang } = useI18n()
   const [discoveries, setDiscoveries] = useState<Discovery[]>([])
   const [selected, setSelected] = useState<Discovery | null>(null)
 
@@ -38,72 +41,66 @@ export default function PokedexPage() {
   const total = discoveries.length
 
   return (
-    <main className='mx-auto flex min-h-screen max-w-3xl flex-col px-4 py-6'>
-      <header className='flex items-center justify-between gap-2'>
-        <div className='min-w-0'>
-          <h1 className='truncate text-2xl font-extrabold tracking-tight'>📒 {t('pokedex.title')}</h1>
-          <p className='text-xs text-muted'>{t('pokedex.count', { n: total })}</p>
-        </div>
-        <Link href='/' className='rounded-full card-2 px-3 py-1.5 text-xs hover:opacity-80'>
-          {t('pokedex.back')}
-        </Link>
-      </header>
+    <>
+      <GameHeader />
+      <main className="mx-auto flex min-h-screen w-full max-w-4xl flex-col gap-6 px-4 py-6 pb-28">
+        <header className="flex items-center justify-between gap-3">
+          <div className="min-w-0">
+            <p className="lab-eyebrow">BYAS · Archive</p>
+            <h1 className="truncate text-2xl font-black tracking-tight">📒 {t('pokedex.title')}</h1>
+            <p className="mt-0.5 text-xs text-muted">{t('pokedex.count', { n: total })}</p>
+          </div>
+          <Link href="/" className="lab-button shrink-0">{t('pokedex.back')}</Link>
+        </header>
 
-      {total > 0 ? (
-        <div className='mt-4 flex flex-wrap gap-2'>
-          {RARITY_ORDER.map((r) => {
-            const cls = 'rounded-full card px-3 py-1 text-xs font-medium ' + RARITY_TEXT[r]
-            return (
-              <span key={r} className={cls}>
+        {total > 0 ? (
+          <div className="flex flex-wrap gap-2">
+            {RARITY_ORDER.map((r) => (
+              <span key={r} className={`rounded-full border border-base bg-white/5 px-3 py-1 text-xs font-bold ${RARITY_TEXT[r]}`}>
                 {t('rarity.' + r)}: {grouped[r]?.length ?? 0}
               </span>
-            )
-          })}
-        </div>
-      ) : null}
+            ))}
+          </div>
+        ) : null}
 
-      {total === 0 ? (
-        <div className='mt-20 text-center text-muted'>
-          <p className='text-4xl'>🧪</p>
-          <p className='mt-3 text-sm'>{t('pokedex.emptyDesc')}</p>
-          <Link
-            href='/'
-            className='mt-4 inline-block rounded-lg bg-sky-600 px-4 py-2 text-sm font-semibold text-white hover:bg-sky-500'
-          >
-            {t('pokedex.start')}
-          </Link>
-        </div>
-      ) : (
-        <div className='mt-6 space-y-8'>
-          {RARITY_ORDER.map((r) => {
-            const items = grouped[r] ?? []
-            if (!items.length) return null
-            const headCls = 'mb-3 text-sm font-bold uppercase tracking-widest ' + RARITY_TEXT[r]
-            return (
-              <section key={r}>
-                <h2 className={headCls}>
-                  {t('rarity.' + r)} · {items.length}
-                </h2>
-                <div className='grid grid-cols-3 gap-2 sm:grid-cols-5 md:grid-cols-6'>
-                  {items.map((d) => (
-                    <button
-                      key={d.result}
-                      onClick={() => setSelected(d)}
-                      className='flex flex-col items-center gap-1 rounded-xl border border-base card p-3 text-center transition hover:opacity-80 active:scale-95'
-                    >
-                      <span className='text-3xl'>{d.emoji}</span>
-                      <span className='text-xs font-medium'>{d.result}</span>
-                      {d.formula ? <span className='font-mono text-[10px] text-muted'>{d.formula}</span> : null}
-                    </button>
-                  ))}
-                </div>
-              </section>
-            )
-          })}
-        </div>
-      )}
+        {total === 0 ? (
+          <div className="lab-panel mt-8 flex flex-col items-center gap-3 py-16 text-center">
+            <p className="text-4xl">🧪</p>
+            <p className="text-sm text-muted">{t('pokedex.emptyDesc')}</p>
+            <Link href="/" className="lab-button-primary mt-1">{t('pokedex.start')}</Link>
+          </div>
+        ) : (
+          <div className="space-y-8">
+            {RARITY_ORDER.map((r) => {
+              const items = grouped[r] ?? []
+              if (!items.length) return null
+              return (
+                <section key={r}>
+                  <h2 className={`mb-3 text-xs font-black uppercase tracking-[0.18em] ${RARITY_TEXT[r]}`}>
+                    {t('rarity.' + r)} · {items.length}
+                  </h2>
+                  <div className="grid grid-cols-3 gap-2.5 sm:grid-cols-4 md:grid-cols-6">
+                    {items.map((d) => (
+                      <button
+                        key={d.result}
+                        onClick={() => setSelected(d)}
+                        className="flex flex-col items-center gap-1 rounded-2xl border border-base bg-white/[0.03] p-3 text-center transition-transform duration-150 hover:-translate-y-0.5 active:scale-95"
+                      >
+                        <span className="text-3xl">{d.emoji}</span>
+                        <span className="text-xs font-bold">{discoveryText(d, lang).result}</span>
+                        {d.formula ? <span className="font-mono text-[10px] text-muted">{d.formula}</span> : null}
+                      </button>
+                    ))}
+                  </div>
+                </section>
+              )
+            })}
+          </div>
+        )}
 
-      {selected ? <DiscoveryModal result={selected} isNew={false} onClose={() => setSelected(null)} /> : null}
-    </main>
+        {selected ? <DiscoveryModal result={selected} isNew={false} onClose={() => setSelected(null)} /> : null}
+      </main>
+      <BottomNav />
+    </>
   )
 }

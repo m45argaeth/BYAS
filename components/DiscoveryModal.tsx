@@ -5,6 +5,7 @@ import type { CombineResult } from '@/lib/types'
 import { RARITY_GRADIENT, RARITY_GLOW, RARITY_LABEL } from '@/lib/rarity'
 import { MASTERY_LABEL, guessCategory } from '@/lib/progress'
 import { useI18n } from '@/lib/i18n'
+import { discoveryText } from '@/lib/localize'
 import { shareDiscovery } from '@/lib/share'
 import { playPop } from '@/lib/sound'
 
@@ -28,7 +29,8 @@ export function DiscoveryModal({
   xpGain?: number
   onClose: () => void
 }) {
-  const { t } = useI18n()
+  const { t, lang } = useI18n()
+  const tx = discoveryText(result, lang)
   const grad = RARITY_GRADIENT[result.rarity] ?? RARITY_GRADIENT.common
   const glow = RARITY_GLOW[result.rarity] ?? RARITY_GLOW.common
   const rarityLabel = RARITY_LABEL[result.rarity] ?? result.rarity
@@ -61,7 +63,7 @@ export function DiscoveryModal({
 
   function onShare() {
     playPop()
-    void shareDiscovery(result, rarityLabel)
+    void shareDiscovery({ ...result, result: tx.result, explanation: tx.explanation, fun_fact: tx.fun_fact, hint: tx.hint }, rarityLabel)
   }
 
   function stop(e: React.MouseEvent) {
@@ -84,7 +86,7 @@ export function DiscoveryModal({
           <div className={`absolute inset-0 bg-gradient-to-br ${grad} transition-opacity duration-500 ${revealed ? 'opacity-24' : 'opacity-10'}`} />
           <div className="absolute inset-x-8 top-6 h-px bg-gradient-to-r from-transparent via-white/55 to-transparent" />
           <p className="relative z-10 text-[10px] font-black uppercase tracking-[0.36em] text-white/70">
-            {isNew ? (revealed ? 'Discovery Unlocked' : 'Analyzing Reaction…') : 'Research Entry'}
+            {isNew ? (revealed ? t('discovery.unlocked') : t('discovery.analyzing')) : t('discovery.entry')}
           </p>
           <div className="relative z-10 mx-auto mt-5 h-28 w-28">
             <div
@@ -106,7 +108,7 @@ export function DiscoveryModal({
             </div>
           </div>
           <h2 className="relative z-10 mt-4 text-3xl font-black tracking-tight">
-            {revealed ? result.result : '· · · · ·'}
+            {revealed ? tx.result : '· · · · ·'}
           </h2>
           {revealed && result.formula ? (
             <p className="relative z-10 mt-1 font-mono text-sm text-white/78">{result.formula}</p>
@@ -130,17 +132,17 @@ export function DiscoveryModal({
         <div className="space-y-3 border-t border-white/10 p-5 text-sm">
           {revealed ? (
             <>
-              <p className="leading-relaxed text-slate-200">{result.explanation}</p>
-              {result.fun_fact ? (
+              <p className="leading-relaxed text-slate-200">{tx.explanation}</p>
+              {tx.fun_fact ? (
                 <div className="rounded-2xl border border-cyan-300/14 bg-cyan-300/8 p-3 text-slate-300">
-                  <p className="text-[10px] font-black uppercase tracking-[0.22em] text-cyan-200/70">Lab Note</p>
-                  <p className="mt-1">{result.fun_fact}</p>
+                  <p className="text-[10px] font-black uppercase tracking-[0.22em] text-cyan-200/70">{t('discovery.labNote')}</p>
+                  <p className="mt-1">{tx.fun_fact}</p>
                 </div>
               ) : null}
-              {result.hint ? (
+              {tx.hint ? (
                 <div className="rounded-2xl border border-violet-300/14 bg-violet-300/8 p-3 text-slate-300">
-                  <p className="text-[10px] font-black uppercase tracking-[0.22em] text-violet-200/70">Future Hint</p>
-                  <p className="mt-1">{result.hint}</p>
+                  <p className="text-[10px] font-black uppercase tracking-[0.22em] text-violet-200/70">{t('discovery.futureHint')}</p>
+                  <p className="mt-1">{tx.hint}</p>
                 </div>
               ) : null}
               <div className="flex gap-2 pt-1">
@@ -150,8 +152,8 @@ export function DiscoveryModal({
             </>
           ) : (
             <div className="flex items-center justify-between gap-3">
-              <p className="text-slate-400">Scanning molecular signature…</p>
-              <button onClick={() => setStage('revealed')} className="lab-button text-xs" type="button">Reveal</button>
+              <p className="text-slate-400">{t('discovery.scanning')}</p>
+              <button onClick={() => setStage('revealed')} className="lab-button text-xs" type="button">{t('discovery.reveal')}</button>
             </div>
           )}
         </div>
