@@ -108,6 +108,12 @@ const MYSTERY_POOL: Array<Omit<Mystery, 'id' | 'rewardXp' | 'rewardCoins'>> = [
   { riddleKey: 'mystery.r4', hintKey: 'mystery.h4', kind: 'element', param: 'N' },
   { riddleKey: 'mystery.r5', hintKey: 'mystery.h5', kind: 'category', param: 'gases' },
   { riddleKey: 'mystery.r6', hintKey: 'mystery.h6', kind: 'rarity', param: 'rare' },
+  { riddleKey: 'mystery.r7', hintKey: 'mystery.h7', kind: 'element', param: 'H' },
+  { riddleKey: 'mystery.r8', hintKey: 'mystery.h8', kind: 'category', param: 'organic' },
+  { riddleKey: 'mystery.r9', hintKey: 'mystery.h9', kind: 'category', param: 'energy' },
+  { riddleKey: 'mystery.r10', hintKey: 'mystery.h10', kind: 'rarity', param: 'epic' },
+  { riddleKey: 'mystery.r11', hintKey: 'mystery.h11', kind: 'element', param: 'Fe' },
+  { riddleKey: 'mystery.r12', hintKey: 'mystery.h12', kind: 'category', param: 'biology' },
 ]
 
 export function getMystery(dateStr: string = todayStr()): Mystery {

@@ -14,6 +14,7 @@ export interface DailyChallenge {
   rewardHints: number
 }
 
+// Pool unsur yang bisa dipakai sebagai challenge harian (simbol + nama tampilan).
 const ELEMENT_POOL = [
   { sym: 'O', label: 'Oxygen' },
   { sym: 'H', label: 'Hydrogen' },
@@ -21,6 +22,12 @@ const ELEMENT_POOL = [
   { sym: 'N', label: 'Nitrogen' },
   { sym: 'Na', label: 'Sodium' },
   { sym: 'S', label: 'Sulfur' },
+  { sym: 'Cl', label: 'Chlorine' },
+  { sym: 'Fe', label: 'Iron' },
+  { sym: 'Ca', label: 'Calcium' },
+  { sym: 'K', label: 'Potassium' },
+  { sym: 'P', label: 'Phosphorus' },
+  { sym: 'Mg', label: 'Magnesium' },
 ]
 
 function hashSeed(s: string): number {
@@ -32,12 +39,18 @@ function hashSeed(s: string): number {
   return Math.abs(h)
 }
 
-export function getDailyChallenge(dateStr: string = todayStr()): DailyChallenge {
+// Bonus target berdasarkan level pemain: +1 tiap 4 level, di-cap +3.
+export function levelTargetBonus(level: number): number {
+  return Math.min(3, Math.max(0, Math.floor((level - 1) / 4)))
+}
+
+export function getDailyChallenge(dateStr: string = todayStr(), level = 1): DailyChallenge {
   const seed = hashSeed(dateStr)
+  const bonus = levelTargetBonus(level)
   const kindRoll = seed % 3
   if (kindRoll === 0) {
     const el = ELEMENT_POOL[seed % ELEMENT_POOL.length]
-    const target = 2 + (seed % 2) // 2-3
+    const target = 2 + (seed % 2) + bonus // base 2-3, naik ikut level
     return {
       id: dateStr,
       kind: 'element',
@@ -67,7 +80,7 @@ export function getDailyChallenge(dateStr: string = todayStr()): DailyChallenge 
       rewardHints: 1,
     }
   }
-  const target = 3 + (seed % 3) // 3-5
+  const target = 3 + (seed % 3) + bonus // base 3-5, naik ikut level
   return {
     id: dateStr,
     kind: 'any',
