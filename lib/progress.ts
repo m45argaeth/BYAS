@@ -9,20 +9,49 @@ export const XP_BY_RARITY: Record<Rarity, number> = {
   mythic: 500,
 }
 
+// The 8 BYAS Discovery Engine v3 domains.
 export const MASTERY_LABEL: Record<MasteryCategory, string> = {
-  organic: 'Organic Chemistry',
-  inorganic: 'Inorganic Chemistry',
-  metals: 'Metals',
-  gases: 'Gases',
+  chemistry: 'Chemistry',
+  materials: 'Materials',
+  geology: 'Geology',
   biology: 'Biology',
-  energy: 'Energy',
-  industrial: 'Industrial Materials',
+  knowledge: 'Knowledge',
+  technology: 'Technology',
+  civilization: 'Civilization',
+  space: 'Space Age',
 }
 
-export function xpForDiscovery(d: { rarity: Rarity; xp?: number; difficulty?: number }): number {
+// The 15 progression tiers (1 = raw Elements, 15 = Space Age).
+export const TIER_LABEL: Record<number, string> = {
+  1: 'Elements',
+  2: 'Molecules',
+  3: 'Materials',
+  4: 'Environment',
+  5: 'Organic Chemistry',
+  6: 'Life',
+  7: 'Intelligence',
+  8: 'Knowledge',
+  9: 'Tools',
+  10: 'Agriculture',
+  11: 'Settlements',
+  12: 'Industry',
+  13: 'Technology',
+  14: 'Civilization',
+  15: 'Space Age',
+}
+
+export function tierLabel(tier?: number): string {
+  if (!tier || !TIER_LABEL[tier]) return ''
+  return `T${tier} \u00b7 ${TIER_LABEL[tier]}`
+}
+
+// Higher tiers and higher difficulty are worth more XP, on top of rarity.
+export function xpForDiscovery(d: { rarity: Rarity; xp?: number; difficulty?: number; tier?: number }): number {
+  if (typeof d.xp === 'number') return d.xp
   const base = XP_BY_RARITY[d.rarity] ?? 10
+  const tierBonus = Math.max(0, (d.tier ?? 1) - 1) * 8
   const difficultyBonus = Math.max(0, (d.difficulty ?? 1) - 1) * 5
-  return d.xp ?? base + difficultyBonus
+  return base + tierBonus + difficultyBonus
 }
 
 // Bonus XP berdasarkan streak aktif, di-cap supaya tidak meledak.
@@ -30,12 +59,13 @@ export function streakXpBonus(streak: number): number {
   return Math.min(Math.max(0, streak), 10) * 2
 }
 
-// XP final untuk discovery baru: rarity + difficulty + streak bonus.
+// XP final untuk discovery baru: rarity + tier + difficulty + streak bonus.
 // Nilai ini disimpan ke disc.xp supaya total XP tetap konsisten saat dihitung ulang.
-export function xpForNewDiscovery(d: { rarity: Rarity; difficulty?: number }, streak: number): number {
+export function xpForNewDiscovery(d: { rarity: Rarity; difficulty?: number; tier?: number }, streak: number): number {
   const base = XP_BY_RARITY[d.rarity] ?? 10
+  const tierBonus = Math.max(0, (d.tier ?? 1) - 1) * 8
   const difficultyBonus = Math.max(0, (d.difficulty ?? 1) - 1) * 5
-  return base + difficultyBonus + streakXpBonus(streak)
+  return base + tierBonus + difficultyBonus + streakXpBonus(streak)
 }
 
 export function totalXpFromDiscoveries(discoveries: Discovery[]): number {
@@ -84,16 +114,18 @@ export function masteryBreakdown(discoveries: Discovery[]): Array<{ category: Ma
   })
 }
 
+// Best-effort domain guess for legacy discoveries that have no stored category.
 export function guessCategory(d: { result?: string; formula?: string | null; category?: MasteryCategory }): MasteryCategory {
   if (d.category) return d.category
   const text = `${d.result ?? ''} ${d.formula ?? ''}`.toLowerCase()
-  if (/(carbon|methane|ethanol|glucose|organic|ch4|c2h|c6h)/.test(text)) return 'organic'
-  if (/(sodium|iron|metal|alloy|na|fe|cu|al)/.test(text)) return 'metals'
-  if (/(gas|oxygen|hydrogen|nitrogen|co2|o2|h2|n2)/.test(text)) return 'gases'
-  if (/(protein|dna|cell|bio|life)/.test(text)) return 'biology'
-  if (/(energy|plasma|battery|fuel|heat)/.test(text)) return 'energy'
-  if (/(plastic|cement|steel|glass|industrial)/.test(text)) return 'industrial'
-  return 'inorganic'
+  if (/(rocket|satellite|spacecraft|space|orbital|fusion|colony|interplanetary|interstellar|terraform|astronaut|launch)/.test(text)) return 'space'
+  if (/(settlement|village|town|\bcity\b|metropolis|government|trade|economy|nation|empire|civil)/.test(text)) return 'civilization'
+  if (/(tool|agriculture|writing|engineering|industry|factory|electric|electronic|comput|machine|robot|\bai\b|engine|technolog)/.test(text)) return 'technology'
+  if (/(observation|measurement|knowledge|science|mathematic|research|innovation|theory|logic)/.test(text)) return 'knowledge'
+  if (/(amino|protein|dna|rna|cell|tissue|organ|plant|animal|human|life|enzyme|microbe|bacteria|bio)/.test(text)) return 'biology'
+  if (/(rock|soil|mineral|volcano|mountain|magma|sediment|\bore\b|crystal|lava|quartz)/.test(text)) return 'geology'
+  if (/(sand|glass|metal|alloy|ceramic|semiconductor|polymer|steel|plastic|material|fiber|concrete|cement)/.test(text)) return 'materials'
+  return 'chemistry'
 }
 
 // Cumulative XP needed to reach a level (level starts at 1). xpForLevel(L) = 50*(L-1)*L
