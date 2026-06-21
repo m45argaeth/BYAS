@@ -59,6 +59,8 @@ export interface Element {
   period?: number
   rarity?: Rarity
   category?: MasteryCategory
+  // For discovered compounds: the specimen ids that were combined to make it.
+  ingredients?: string[]
 }
 
 export interface Discovery extends CombineResult {
