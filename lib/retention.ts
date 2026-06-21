@@ -101,19 +101,21 @@ export interface Mystery {
   rewardCoins: number
 }
 
+// Category params use the v3 discovery domains:
+// chemistry | materials | geology | biology | knowledge | technology | civilization | space
 const MYSTERY_POOL: Array<Omit<Mystery, 'id' | 'rewardXp' | 'rewardCoins'>> = [
   { riddleKey: 'mystery.r1', hintKey: 'mystery.h1', kind: 'element', param: 'O' },
-  { riddleKey: 'mystery.r2', hintKey: 'mystery.h2', kind: 'category', param: 'metals' },
+  { riddleKey: 'mystery.r2', hintKey: 'mystery.h2', kind: 'category', param: 'materials' },
   { riddleKey: 'mystery.r3', hintKey: 'mystery.h3', kind: 'element', param: 'C' },
   { riddleKey: 'mystery.r4', hintKey: 'mystery.h4', kind: 'element', param: 'N' },
-  { riddleKey: 'mystery.r5', hintKey: 'mystery.h5', kind: 'category', param: 'gases' },
+  { riddleKey: 'mystery.r5', hintKey: 'mystery.h5', kind: 'category', param: 'chemistry' },
   { riddleKey: 'mystery.r6', hintKey: 'mystery.h6', kind: 'rarity', param: 'rare' },
   { riddleKey: 'mystery.r7', hintKey: 'mystery.h7', kind: 'element', param: 'H' },
-  { riddleKey: 'mystery.r8', hintKey: 'mystery.h8', kind: 'category', param: 'organic' },
-  { riddleKey: 'mystery.r9', hintKey: 'mystery.h9', kind: 'category', param: 'energy' },
+  { riddleKey: 'mystery.r8', hintKey: 'mystery.h8', kind: 'category', param: 'biology' },
+  { riddleKey: 'mystery.r9', hintKey: 'mystery.h9', kind: 'category', param: 'technology' },
   { riddleKey: 'mystery.r10', hintKey: 'mystery.h10', kind: 'rarity', param: 'epic' },
   { riddleKey: 'mystery.r11', hintKey: 'mystery.h11', kind: 'element', param: 'Fe' },
-  { riddleKey: 'mystery.r12', hintKey: 'mystery.h12', kind: 'category', param: 'biology' },
+  { riddleKey: 'mystery.r12', hintKey: 'mystery.h12', kind: 'category', param: 'space' },
 ]
 
 export function getMystery(dateStr: string = todayStr()): Mystery {
